@@ -42,32 +42,63 @@ log_error() {
 download_channel() {
     local url="$1"
     local rate_limit="${2:-2}"  # seconds between videos (fast but safe)
-    
+    local max_attempts=5
+
     log_info "Downloading from: $url"
     log_warn "Rate limit: ${rate_limit}s between videos"
-    
+
     # Append channel URL to channels.txt (avoid duplicates)
     if ! grep -q "^${url}$" "$REPO_ROOT/channels.txt" 2>/dev/null; then
         echo "$url" >> "$REPO_ROOT/channels.txt"
         log_info "Added to channels.txt"
     fi
-    
-    # Extract new videos using yt-dlp with rate limiting
-    # Fast settings: English only, minimal sleep, optimized for speed
-    yt-dlp \
-        --skip-download \
-        --write-info-json \
-        --write-auto-subs \
-        --sub-langs en \
-        --sub-format vtt \
-        --no-playlist \
-        --sleep-interval 1.5 \
-        --max-sleep-interval 3 \
-        --socket-timeout 30 \
-        --progress \
-        --output "$OUT_DIR/%(uploader)s/%(id)s/%(title)s [%(id)s].%(ext)s" \
-        "$url"
-    
+
+    # yt-dlp occasionally hangs on individual videos due to YouTube API timeouts.
+    # Use --ignore-errors + --retries and loop until no new videos are found
+    # (or we hit max_attempts). Re-running yt-dlp is cheap because it skips
+    # files that already exist.
+    local attempt=1
+    local prev_count=-1
+    while [ $attempt -le $max_attempts ]; do
+        log_info "Download attempt ${attempt}/${max_attempts}"
+        yt-dlp \
+            --skip-download \
+            --write-info-json \
+            --write-auto-subs \
+            --sub-langs en \
+            --sub-format vtt \
+            --no-playlist \
+            --sleep-interval 1.5 \
+            --max-sleep-interval 3 \
+            --socket-timeout 20 \
+            --retries 3 \
+            --ignore-errors \
+            --no-warnings \
+            --progress \
+            --output "$OUT_DIR/%(uploader)s/%(id)s/%(title)s [%(id)s].%(ext)s" \
+            "$url" || log_warn "yt-dlp exited non-zero (continuing)"
+
+        # Count current videos for this uploader. If unchanged, we're done.
+        local cur_count
+        cur_count=$(find "$OUT_DIR" -name "*.info.json" -newer "$REPO_ROOT/channels.txt" 2>/dev/null | wc -l | tr -d ' ')
+        if [ "$cur_count" -eq "$prev_count" ]; then
+            log_info "No new files this attempt -- download complete"
+            break
+        fi
+        prev_count=$cur_count
+        attempt=$((attempt + 1))
+        sleep 2
+    done
+
+    # Quarantine any channel-listing folders yt-dlp may have created
+    # (folders named @handle or UCxxx are channel metadata, not videos).
+    find "$OUT_DIR" -type d \( -name "@*" -o -name "UC*" \) -mindepth 2 -maxdepth 2 2>/dev/null | while read -r d; do
+        local parent
+        parent=$(dirname "$d")
+        mkdir -p "$parent/_channel_meta"
+        mv "$d" "$parent/_channel_meta/" 2>/dev/null && log_info "Quarantined channel-meta: $d"
+    done
+
     log_info "Download complete"
 }
 
