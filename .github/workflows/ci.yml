@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  lint-and-test:
+    name: Lint + smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff requests
+
+      - name: Bash syntax check (export.sh)
+        run: bash -n export.sh
+
+      - name: Lint Python (ruff)
+        run: |
+          # Lenient ruleset for now -- catch real bugs, not style nits.
+          ruff check src/ --select=E9,F63,F7,F82 --output-format=github
+
+      - name: Build test fixture
+        run: bash tests/build_fixture.sh
+
+      - name: Run pipeline on fixture (rebuild-metadata)
+        run: ./export.sh --rebuild-metadata
+
+      - name: Run pipeline on fixture (rebuild-markdown)
+        run: ./export.sh --rebuild-markdown
+
+      - name: Run audit (must report 0 layout violations)
+        run: |
+          OUTPUT=$(./export.sh --audit)
+          echo "$OUTPUT"
+          # Fail if either layout audit line reports anything other than 0.
+          if echo "$OUTPUT" | grep -E "(Non-id-named folders|Extra/legacy files in video folders) \(should be 0\): [^0]" ; then
+            echo "::error::Layout audit reported violations."
+            exit 1
+          fi
+          echo "Audit passed."
+
+      - name: Verify expected markdown was generated
+        run: |
+          if [ ! -f markdown/Test_Channel/*.md ]; then
+            echo "::error::No markdown file generated for test fixture."
+            exit 1
+          fi
+          echo "Markdown generated successfully:"
+          ls -la markdown/Test_Channel/

@@ -3,6 +3,7 @@
 <img src="docs/images/banner.svg" alt="YouTube Transcript Exporter" width="100%"/>
 
 <p>
+<a href="https://github.com/dlovecreator-arch/youtube-transcript-exporter/actions/workflows/ci.yml"><img src="https://github.com/dlovecreator-arch/youtube-transcript-exporter/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="license"/></a>
 <a href="#"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="python"/></a>
 <a href="#"><img src="https://img.shields.io/badge/yt--dlp-required-red?style=flat-square" alt="yt-dlp"/></a>
