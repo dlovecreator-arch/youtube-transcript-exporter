@@ -3,12 +3,12 @@
 <img src="docs/images/banner.svg" alt="YouTube Transcript Exporter" width="100%"/>
 
 <p>
-<a href="https://github.com/dlovecreator-arch/youtube-transcript-exporter/actions"><img src="https://img.shields.io/badge/build-passing-brightgreen?style=flat-square" alt="build"/></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="license"/></a>
 <a href="#"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="python"/></a>
 <a href="#"><img src="https://img.shields.io/badge/yt--dlp-required-red?style=flat-square" alt="yt-dlp"/></a>
 <a href="#"><img src="https://img.shields.io/badge/Obsidian-ready-7C3AED?style=flat-square&logo=obsidian&logoColor=white" alt="Obsidian"/></a>
 <a href="#"><img src="https://img.shields.io/badge/Notion-sync-000000?style=flat-square&logo=notion&logoColor=white" alt="Notion"/></a>
+<a href="https://github.com/dlovecreator-arch/youtube-transcript-exporter/stargazers"><img src="https://img.shields.io/github/stars/dlovecreator-arch/youtube-transcript-exporter?style=flat-square" alt="stars"/></a>
 </p>
 
 <p><strong>Bulk-download YouTube channel transcripts. Build a structured, cross-referenceable "second brain" in Obsidian or Notion.</strong></p>
