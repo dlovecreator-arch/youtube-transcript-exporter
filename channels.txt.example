@@ -1,0 +1,5 @@
+# One channel URL per line. Lines starting with # are ignored.
+# The CLI auto-appends new channels here when you run --new-channel or --full-pipeline.
+# Examples:
+# https://www.youtube.com/@LexFridman
+# https://www.youtube.com/@hubermanlab

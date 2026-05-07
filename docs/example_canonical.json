@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "generated": "2026-05-07T00:00:00",
+  "videos": [
+    {
+      "id": "dQw4w9WgXcQ",
+      "title": "Example Episode: How to Read This Vault",
+      "channel": "Example Channel",
+      "channel_id": "UCExampleChannelID",
+      "uploader": "Example Channel",
+      "date": "20250115",
+      "duration": 1234,
+      "views": 50000,
+      "likes": 1200,
+      "url": "https://youtu.be/dQw4w9WgXcQ",
+      "description": "An example episode demonstrating the canonical record schema...",
+      "category": "Education",
+      "guest": "Sample Guest",
+      "tags": ["example", "documentation", "demo"],
+      "sources": ["dQw4w9WgXcQ"]
+    }
+  ],
+  "channels": {
+    "Example Channel": 1
+  },
+  "duplicates": {}
+}

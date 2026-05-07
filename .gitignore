@@ -1,0 +1,55 @@
+# ============================================================
+# DATA -- Never commit. Users generate their own.
+# ============================================================
+# Raw yt-dlp downloads (channels' transcripts).
+out/
+# Generated Obsidian vault.
+markdown/
+# User-specific metadata DB.
+db/canonical.json
+# Personal logs/old reports.
+archive/
+# User-specific channel list (use channels.txt.example as template).
+channels.txt
+
+# Allow the db/ folder to exist via a placeholder.
+!db/.gitkeep
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# ============================================================
+# OS / editor
+# ============================================================
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ============================================================
+# Secrets
+# ============================================================
+.env
+.env.local
+*.key
+secrets/
+
+# ============================================================
+# User notes
+# ============================================================
+NOTES.md
+SCRATCH.md
+TODO.md
