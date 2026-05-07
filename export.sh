@@ -41,11 +41,9 @@ log_error() {
 
 download_channel() {
     local url="$1"
-    local rate_limit="${2:-2}"  # seconds between videos (fast but safe)
-    local max_attempts=5
 
     log_info "Downloading from: $url"
-    log_warn "Rate limit: ${rate_limit}s between videos"
+    log_info "Using resilient downloader with rate limiting + user agent rotation"
 
     # Append channel URL to channels.txt (avoid duplicates)
     if ! grep -q "^${url}$" "$REPO_ROOT/channels.txt" 2>/dev/null; then
@@ -53,42 +51,10 @@ download_channel() {
         log_info "Added to channels.txt"
     fi
 
-    # yt-dlp occasionally hangs on individual videos due to YouTube API timeouts.
-    # Use --ignore-errors + --retries and loop until no new videos are found
-    # (or we hit max_attempts). Re-running yt-dlp is cheap because it skips
-    # files that already exist.
-    local attempt=1
-    local prev_count=-1
-    while [ $attempt -le $max_attempts ]; do
-        log_info "Download attempt ${attempt}/${max_attempts}"
-        yt-dlp \
-            --skip-download \
-            --write-info-json \
-            --write-auto-subs \
-            --sub-langs en \
-            --sub-format vtt \
-            --no-playlist \
-            --sleep-interval 1.5 \
-            --max-sleep-interval 3 \
-            --socket-timeout 20 \
-            --retries 3 \
-            --ignore-errors \
-            --no-warnings \
-            --progress \
-            --output "$OUT_DIR/%(uploader)s/%(id)s/%(title)s [%(id)s].%(ext)s" \
-            "$url" || log_warn "yt-dlp exited non-zero (continuing)"
-
-        # Count current videos for this uploader. If unchanged, we're done.
-        local cur_count
-        cur_count=$(find "$OUT_DIR" -name "*.info.json" -newer "$REPO_ROOT/channels.txt" 2>/dev/null | wc -l | tr -d ' ')
-        if [ "$cur_count" -eq "$prev_count" ]; then
-            log_info "No new files this attempt -- download complete"
-            break
-        fi
-        prev_count=$cur_count
-        attempt=$((attempt + 1))
-        sleep 2
-    done
+    # Use the resilient Python downloader
+    # It handles: exponential backoff, rotating user agents, batched downloads, hard timeouts
+    cd "$REPO_ROOT"
+    python3 "$SRC_DIR/download_resilient.py" "$url" 5
 
     # Quarantine any channel-listing folders yt-dlp may have created
     # (folders named @handle or UCxxx are channel metadata, not videos).
