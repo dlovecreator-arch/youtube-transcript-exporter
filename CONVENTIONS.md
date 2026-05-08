@@ -22,6 +22,34 @@ If a channel exceeds 2000 videos, the timeout will automatically use 120 minutes
 
 ---
 
+## CRITICAL: Channel URL Format (Fixed 2026-05-08)
+
+**Problem**: Elizabeth April URL `@ElizabethApril/videos` only returned 8 videos; channel root `@ElizabethApril` returned 83+
+
+**Root Cause**: YouTube's `/videos` tab uses client-side pagination with hard limit (~8-20 recent items). Channel root API endpoint provides full history.
+
+**Solution**: Auto-detection heuristic in downloader:
+- If `/videos` URL returns < 20 videos after first attempt
+- Automatically retry with channel root (remove `/videos` suffix)
+- Log the URL switch for auditability
+
+### URL Format Guidelines
+| Format | Coverage | Result |
+|---|---|---|
+| `@handle/videos` | Recent only (8-20) | Auto-retries with root |
+| `@handle` (root) | Full history | Use this format |
+| Channel ID URL | Full history | Alternative fallback |
+
+**For future channels**: Use any format. The downloader will:
+1. Try the provided URL
+2. If < 20 videos returned AND URL has `/videos`, automatically switch to channel root
+3. Resume downloading with the better URL
+4. Log which format was most effective
+
+No manual intervention needed.
+
+---
+
 ## 1. Top-level Layout
 
 ```

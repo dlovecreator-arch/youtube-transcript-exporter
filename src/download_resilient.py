@@ -65,12 +65,29 @@ def estimate_timeout(video_count):
     else:
         return 7200  # 120 minutes
 
+def normalize_channel_url(url):
+    """
+    YouTube channels can be accessed via multiple URL formats.
+    
+    /videos tab: https://www.youtube.com/@handle/videos
+    - Only returns recent videos (client-side pagination limit)
+    - Typical: 8-20 recent items only
+    
+    Channel root: https://www.youtube.com/@handle
+    - Returns full video history
+    - Typical: all videos available
+    
+    This function doesn't modify URLs -- just documents the pattern.
+    The heuristic below will retry with channel root if /videos is suspiciously small.
+    """
+    return url
+
 def download_with_backoff(url, max_attempts=5):
     """Download with exponential backoff and user agent rotation."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     
     log(f"Starting download: {url}")
-    log("Strategy: exponential backoff + rotating user agents + adaptive timeout")
+    log("Strategy: exponential backoff + rotating user agents + adaptive timeout + channel format detection")
     
     attempt = 1
     backoff = 5
@@ -121,6 +138,16 @@ def download_with_backoff(url, max_attempts=5):
         current_count = count_videos(OUT_DIR)
         log(f"Progress: {current_count} videos (gained {current_count - last_count} this attempt)")
         last_count = current_count
+        
+        # HEURISTIC: If /videos tab returned suspiciously small count, retry with channel root
+        if attempt == 1 and current_count < 20 and "/videos" in url:
+            log(f"⚠️  WARNING: /videos tab only returned {current_count} videos (likely incomplete)")
+            log(f"  Retrying with channel root (remove /videos suffix)")
+            url_root = url.replace("/videos", "")
+            log(f"  New URL: {url_root}")
+            url = url_root
+            # Reset counter for this new attempt chain
+            last_count = current_count
         
         # If we made progress, continue with next attempt
         if current_count > 0 and attempt < max_attempts:
