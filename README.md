@@ -15,15 +15,29 @@
 <p><strong>Bulk-download YouTube channel transcripts. Build a structured, cross-referenceable "second brain" in Obsidian or Notion.</strong></p>
 
 <p>
-<a href="#-quickstart">Quickstart</a> -
-<a href="#-what-you-get">What you get</a> -
-<a href="#-how-it-works">How it works</a> -
-<a href="#-commands">Commands</a> -
-<a href="CONVENTIONS.md">Conventions</a> -
-<a href="#-roadmap">Roadmap</a>
+<a href="QUICKSTART.md">⚡ Quick Start</a> -
+<a href="INSTALL.md">📦 Install</a> -
+<a href="API.md">📚 API Docs</a> -
+<a href="TROUBLESHOOTING.md">🔧 Help</a> -
+<a href="PRODUCTION_READINESS.md">✅ Production Ready</a>
 </p>
 
 </div>
+
+---
+
+## 📖 Documentation
+
+This project is built for production use. Start here:
+
+| Document | Purpose |
+|----------|---------|
+| [**QUICKSTART.md**](QUICKSTART.md) | Get up and running in 5 minutes |
+| [**INSTALL.md**](INSTALL.md) | Detailed installation guide |
+| [**API.md**](API.md) | Programmatic usage & examples |
+| [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) | Solve common problems |
+| [**PRODUCTION_READINESS.md**](PRODUCTION_READINESS.md) | Enterprise-grade standards met |
+| [**CONTRIBUTING.md**](CONTRIBUTING.md) | Help improve this project |
 
 ---
 
