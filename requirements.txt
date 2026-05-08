@@ -1,0 +1,17 @@
+# YouTube Transcript Exporter - Dependencies
+# Production-grade Python package requirements
+
+# No external dependencies required for core functionality.
+# This project is built on Python standard library only.
+#
+# Python Version: 3.9+
+#
+# Optional dependencies for enhanced functionality:
+# - yt-dlp (for direct YouTube downloads, if YouTube API fails)
+# - requests (for HTTP operations, included in yt-dlp)
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# For development/testing:
+#   pip install -r requirements-dev.txt

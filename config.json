@@ -1,0 +1,19 @@
+{
+  "youtube_api_key": null,
+  "notion_token": null,
+  "max_workers": 4,
+  "download_timeout": 300,
+  "retry_attempts": 3,
+  "retry_delay": 5,
+  "output_dir": "out",
+  "markdown_dir": "markdown",
+  "db_path": "db/canonical.json",
+  "obsidian_vault_dir": "obsidian_vault",
+  "batch_size": 100,
+  "skip_no_transcript": false,
+  "use_cache": true,
+  "incremental_mode": true,
+  "logging_level": "INFO",
+  "log_dir": "logs",
+  "version": "1.0"
+}
