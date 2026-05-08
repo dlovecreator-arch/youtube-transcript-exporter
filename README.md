@@ -64,6 +64,31 @@ Notion and Obsidian integrations are **optional exporters**, not requirements.
 - Engineers building RAG datasets from public video transcripts
 - Anyone building a personal "second brain" from YouTube
 
+## Common use cases
+
+1. **Build a searchable interview archive**
+   - Export multiple channels
+   - Search across guests/topics with grep, ripgrep, or an LLM
+
+2. **Create a local RAG dataset**
+   - Use `db/canonical.json` as your single source of truth
+   - Chunk/embed the transcript text for semantic search
+
+3. **Team knowledge base / enablement**
+   - Turn long-form content into a browsable Markdown library
+   - Commit *only the code* to GitHub and keep data local
+
+4. **Optional exports**
+   - **Obsidian**: open `markdown/` as a vault
+   - **Notion**: export to a Notion database if you want a hosted UI
+
+## Why this is different
+
+- **Resumable + safe to rerun**: downloads and processing can be repeated without corrupting state
+- **Canonical database**: deduplicates videos across channels into one JSON source of truth
+- **Incremental markdown generation**: does not wipe your vault; writes only changed files
+- **Health checks**: `system_health_check.py` catches drift early
+
 Run one command per channel:
 
 ```bash

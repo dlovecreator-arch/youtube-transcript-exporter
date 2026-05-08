@@ -6,8 +6,8 @@ Get YouTube transcripts up and running in 5 minutes.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/youtube_transcript_exporter.git
-cd youtube_transcript_exporter
+git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
+cd youtube-transcript-exporter
 
 # Create required directories
 mkdir -p db out markdown logs

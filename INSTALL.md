@@ -12,8 +12,8 @@
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/yourusername/youtube_transcript_exporter.git
-cd youtube_transcript_exporter
+git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
+cd youtube-transcript-exporter
 ```
 
 ### 2. Verify Python version
