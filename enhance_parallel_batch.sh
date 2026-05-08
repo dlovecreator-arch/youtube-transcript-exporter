@@ -50,7 +50,16 @@ log "Step 3/3: Running audit..."
 ./export.sh --audit | tail -50
 
 FINAL=$(python3 -c "import json; data = json.load(open('db/canonical.json')); print(len(data.get('videos', [])))")
+
+log ""
+log "Step 4/4: Running system health check..."
+python3 system_health_check.py || {
+  log "⚠️ CRITICAL: System health check failed. Review issues above."
+  exit 1
+}
+
 log ""
 log "✓ COMPLETE!"
 log "System now at $FINAL total videos"
+log "✓ All health checks passed"
 log ""

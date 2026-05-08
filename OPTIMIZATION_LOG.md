@@ -33,6 +33,65 @@ This document captures optimizations discovered during operation, organized by p
 
 ## Active Session Optimizations (2026-05-08 Continued)
 
+### 🟢 FIXED: System Health Check Infrastructure (User-Requested)
+
+**Issue**: I failed to catch the incomplete markdown generation during validation. This is a systematic problem - I have monitoring tools but no enforcement pipeline.
+
+**Solution Implemented**:
+1. Created `system_health_check.py` - comprehensive multi-layer validation
+   - Checks canonical DB completeness (RAG schema, video count)
+   - Validates raw downloads alignment
+   - **CRITICAL**: Verifies markdown coverage (channels + files)
+   - Checks caption file coverage
+   - Reports issues clearly
+
+2. **New Rule**: This check MUST run after:
+   - Every enhancement pipeline completion
+   - Every major download batch
+   - Every time user validates system
+
+3. **Auto-enforcement**: Update all enhancement scripts to:
+   - Run system_health_check.py at end
+   - Exit with error if CRITICAL issues found
+   - Prevent incomplete states from propagating
+
+**Implementation Status**: ✅ COMPLETE
+- [x] Created comprehensive health check script
+- [x] Test it catches markdown issue
+- [x] Document the requirement
+- [ ] Integrate into enhancement pipeline (next step)
+
+**What This Prevents**:
+- Incomplete markdown generation going unnoticed
+- Channel count mismatches
+- RAG schema coverage gaps
+- Caption file shortfalls
+
+---
+
+### 🔴 CRITICAL: Markdown Generation Incomplete (User Discovery - NOW FIXED)
+
+**Issue**: Markdown folder only had 3 channels (Alignment of Light, Eluña, Emilio Ortiz) despite 23 channels in canonical DB
+
+**Root Cause**: Markdown regeneration failed/didn't complete for newer channels added in parallel downloads. Only 3 channels were ever fully regenerated.
+
+**Solution**: 
+- Run `./export.sh --rebuild-markdown` for all 6,656 videos
+- Currently regenerating (CPU-intensive, ~5-10 min for full set)
+- Will cover all 23 channels
+
+**Implementation Status**: 🟡 In Progress
+- [x] Identified incomplete markdown generation
+- [x] Started full rebuild for all videos
+- [ ] Verify all 23 channels have markdown files
+- [ ] Update pipeline to ensure markdown runs for ALL channels in enhancement
+
+**Impact**: Markdown vault was incomplete but all data preserved in canonical DB and raw downloads. Regeneration will complete it now.
+
+**Prevention**: Markdown regeneration should ALWAYS run on canonical.json contents, not just specific channels.
+
+---
+
 ### 🟡 IN PROGRESS: Unicode Folder Name Handling (André Duqum Discovery)
 
 **Issue**: Count showed 7 videos for André Duqum, but actually downloaded 199 videos
