@@ -54,6 +54,12 @@ jobs:
           fi
           echo "Audit passed."
 
+      - name: Run unit tests
+        run: python3 tests/test_all.py
+
+      - name: Production readiness validator
+        run: ./validate_production.sh
+
       - name: Verify expected markdown was generated
         run: |
           if [ ! -f markdown/Test_Channel/*.md ]; then

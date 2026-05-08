@@ -95,6 +95,14 @@ Run one command per channel:
 ./export.sh --full-pipeline https://www.youtube.com/@SomeChannel
 ```
 
+Prefer a single entrypoint?
+
+```bash
+python -m ytexporter new-channel https://www.youtube.com/@SomeChannel
+python -m ytexporter rebuild-markdown
+python -m ytexporter health
+```
+
 You get clean transcripts, structured metadata (guest, tags, date, views), and a single canonical database that links the same video appearing on multiple channels.
 
 ---
