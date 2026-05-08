@@ -39,6 +39,8 @@ This project is built for production use. Start here:
 | [**PRODUCTION_READINESS.md**](PRODUCTION_READINESS.md) | Enterprise-grade standards met |
 | [**CONTRIBUTING.md**](CONTRIBUTING.md) | Help improve this project |
 
+Internal/maintenance notes are kept in [`docs/reports/`](docs/reports/) to keep the repo top-level clean.
+
 ---
 
 ## Why this exists
