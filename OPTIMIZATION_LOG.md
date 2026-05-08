@@ -31,6 +31,33 @@ This document captures optimizations discovered during operation, organized by p
 
 ---
 
+## Active Session Optimizations (2026-05-08 Continued)
+
+### 🟡 IN PROGRESS: Unicode Folder Name Handling (André Duqum Discovery)
+
+**Issue**: Count showed 7 videos for André Duqum, but actually downloaded 199 videos
+
+**Root Cause**: Search patterns used `andre` but folder is `André Duqum` (accent character). Unicode normalization not handled in counting scripts.
+
+**Solution**: 
+- Add Unicode-aware folder discovery
+- Handle accented characters in channel names
+- Update all counting/reporting scripts to use robust path matching
+
+**Implementation Status**: 🟡 In Progress
+- [ ] Update download status reporting to handle Unicode
+- [ ] Add accent-aware channel matching
+- [ ] Test with other accented channel names
+- [ ] Update parallel batch script counting
+
+**Code Locations**: 
+- Status reporting: various scripts
+- Counting: `enhance_parallel_batch.sh`, shell functions
+
+**Impact**: André Duqum: 7 → 199 videos (correct count achieved, just reporting issue)
+
+---
+
 ## Past Session Optimizations (Successfully Implemented)
 
 ### ✅ COMPLETED: Adaptive Timeout for Large Channels (2026-05-08)
