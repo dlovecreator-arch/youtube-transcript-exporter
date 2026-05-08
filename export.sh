@@ -81,6 +81,8 @@ extract_metadata() {
 regenerate_markdown() {
     log_info "Regenerating Markdown files with optimized frontmatter..."
     cd "$REPO_ROOT"
+    # Incremental by default (non-destructive). Use `python3 src/markdown_generator.py --clean`
+    # only if you explicitly want to wipe/rebuild the markdown vault.
     python3 "$SRC_DIR/markdown_generator.py"
     
     log_info "Formatting Obsidian vault structure..."
@@ -220,6 +222,7 @@ COMMANDS:
   --new-channel <URL>        Download transcripts from new YouTube channel
   --rebuild-metadata         Extract metadata from all .info.json files
   --rebuild-markdown         Regenerate Markdown with new frontmatter
+                             (incremental by default; does NOT wipe markdown/)
   --export-notion [--max N]  Export to Notion database
   --audit                    Run quality audit
   --full-pipeline <URL>      Download + metadata + markdown (no Notion)

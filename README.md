@@ -12,7 +12,7 @@
 <a href="https://github.com/dlovecreator-arch/youtube-transcript-exporter/stargazers"><img src="https://img.shields.io/github/stars/dlovecreator-arch/youtube-transcript-exporter?style=flat-square" alt="stars"/></a>
 </p>
 
-<p><strong>Bulk-download YouTube channel transcripts. Build a structured, cross-referenceable "second brain" in Obsidian or Notion.</strong></p>
+<p><strong>Bulk-export YouTube transcripts + metadata into a clean local dataset you can search, analyze, and feed into any workflow (Obsidian, Notion, RAG, research).</strong></p>
 
 <p>
 <a href="QUICKSTART.md">⚡ Quick Start</a> -
@@ -45,7 +45,22 @@ This project is built for production use. Start here:
 
 You watch a lot of YouTube. Across 10+ channels, the same ideas, guests, and frameworks come up over and over. But you can't search across them. You can't ask _"every time Joe Rogan, Lex, and Huberman talked about sleep"_. You can't even quote them properly.
 
-This tool turns YouTube channels into a **searchable, cross-referenced knowledge base** -- in your Obsidian vault, your Notion, or feeding any LLM RAG pipeline.
+This tool turns YouTube channels into a **searchable, structured dataset** you can:
+
+- read like a library (Markdown)
+- analyze like a database (canonical JSON)
+- index for semantic search / RAG
+- optionally sync into tools like Obsidian or Notion
+
+Notion and Obsidian integrations are **optional exporters**, not requirements.
+
+## Who this is for
+
+- Researchers and students building a literature review from long-form content
+- Journalists and analysts creating a quoteable archive
+- Creators and teams monitoring topics/guests across channels
+- Engineers building RAG datasets from public video transcripts
+- Anyone building a personal "second brain" from YouTube
 
 Run one command per channel:
 

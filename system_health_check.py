@@ -9,6 +9,18 @@ import json
 import os
 from pathlib import Path
 from collections import defaultdict
+import re
+
+
+def safe_channel_dir(channel: str) -> str:
+    """Must match markdown_generator.py channel directory naming."""
+    s = (channel or "Unknown").strip()
+    s = s.replace("/", "⧸")
+    s = re.sub(r"\s+", "_", s)
+    s = s.strip("_")
+    # Keep it conservative for filesystems
+    s = re.sub(r'[<>:"/\\|?*]', '', s)
+    return s[:80]
 
 def check_system_health():
     """Run comprehensive health checks across all system layers."""
@@ -71,20 +83,31 @@ def check_system_health():
     markdown_channels = set()
     for folder in Path('markdown').iterdir():
         if folder.is_dir() and folder.name not in ['.DS_Store']:
-            markdown_channels.add(folder.name)
+            markdown_channels.add(folder.name.strip("_"))
     
     markdown_count = len(list(Path('markdown').glob('**/*.md')))
     print(f"  ✓ Markdown files: {markdown_count}")
     print(f"  ✓ Markdown channel folders: {len(markdown_channels)}")
     
     # CRITICAL: Check coverage mismatch
-    if len(markdown_channels) < len(channels_in_db):
-        missing_channels = len(channels_in_db) - len(markdown_channels)
+    expected_md_folders = {safe_channel_dir(ch) for ch in channels_in_db}
+    missing_folders = expected_md_folders - markdown_channels
+    extra_folders = markdown_channels - expected_md_folders
+    present_expected = expected_md_folders - missing_folders
+
+    if missing_folders:
+        missing_channels = len(missing_folders)
         issues.append(
             f"CRITICAL: {missing_channels} channels in DB but missing markdown folders! "
-            f"({len(markdown_channels)}/{len(channels_in_db)})"
+            f"({len(present_expected)}/{len(expected_md_folders)} present)"
         )
         print(f"  ⚠️ MISSING: {missing_channels} channels lack markdown folders")
+
+    if extra_folders:
+        # Not critical, but indicates legacy/duplicate folder naming.
+        warnings.append(
+            f"WARNING: Found {len(extra_folders)} unexpected markdown channel folders (legacy/duplicates)."
+        )
     
     # CRITICAL: Check video count alignment
     expected_markdown_min = len(videos) * 0.90  # Allow 10% buffer for processing
