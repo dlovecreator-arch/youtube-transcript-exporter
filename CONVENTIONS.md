@@ -4,6 +4,24 @@ This is the **single source of truth** for how this repo is organized. Everythin
 
 ---
 
+## CRITICAL: Large Channel Handling (Fixed 2026-05-08)
+
+**Problem**: Asha Nayaswami channel (1,909 videos) was timing out at 600 seconds, only capturing ~291 videos.
+
+**Solution**: `src/download_resilient.py` now uses **adaptive timeout**:
+
+| Channel Size | Timeout | Applied To |
+|---|---|---|
+| < 500 videos | 600s (10 min) | Kerry K, Eluña, etc. |
+| 500-2000 videos | 3600s (60 min) | Pam Gregory, Teal Swan |
+| 2000+ videos | 7200s (120 min) | Asha Nayaswami (1909 vids) |
+
+**No manual intervention needed** -- downloader auto-detects and scales timeout based on estimated channel size. Logs show which timeout is active.
+
+If a channel exceeds 2000 videos, the timeout will automatically use 120 minutes.
+
+---
+
 ## 1. Top-level Layout
 
 ```

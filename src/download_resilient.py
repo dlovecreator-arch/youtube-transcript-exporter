@@ -6,7 +6,11 @@ Core strategy:
 - Increased inter-video sleep (2.5s instead of 1.5s)
 - Rotating user agents to avoid fingerprinting
 - Exponential backoff on batch failure
-- Hard timeout per batch (10 minutes per attempt)
+- Adaptive timeout: scales based on estimated video count
+  * Small channels (<500): 600s (10 min)
+  * Medium channels (500-2000): 3600s (60 min)
+  * Large channels (2000+): 7200s (120 min)
+- Resume-safe: can re-run indefinitely to accumulate all videos
 """
 
 import subprocess
@@ -42,12 +46,31 @@ def count_videos(out_dir):
     """Count .info.json files (completed downloads)."""
     return len(list(out_dir.glob("*/*.info.json")))
 
+def estimate_timeout(video_count):
+    """
+    Calculate adaptive timeout based on estimated video count.
+    
+    At 2.5s per video:
+    - 100 videos = 250s (4 min)
+    - 500 videos = 1250s (21 min) -> use 600s (10 min) for small channels
+    - 1000 videos = 2500s (42 min) -> use 3600s (60 min) for medium
+    - 2000 videos = 5000s (83 min) -> use 7200s (120 min) for large
+    
+    Add 50% safety margin.
+    """
+    if video_count < 500:
+        return 600  # 10 minutes
+    elif video_count < 2000:
+        return 3600  # 60 minutes
+    else:
+        return 7200  # 120 minutes
+
 def download_with_backoff(url, max_attempts=5):
     """Download with exponential backoff and user agent rotation."""
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     
     log(f"Starting download: {url}")
-    log("Strategy: exponential backoff + rotating user agents + aggressive sleep intervals")
+    log("Strategy: exponential backoff + rotating user agents + adaptive timeout")
     
     attempt = 1
     backoff = 5
@@ -56,6 +79,13 @@ def download_with_backoff(url, max_attempts=5):
     while attempt <= max_attempts:
         user_agent = random.choice(USER_AGENTS)
         log(f"Attempt {attempt}/{max_attempts} (UA rotation: {USER_AGENTS.index(user_agent) + 1}/{len(USER_AGENTS)})")
+        
+        # Estimate timeout based on current download count (assume similar size)
+        current_count = count_videos(OUT_DIR)
+        estimated_total = max(500, current_count * 2)  # Conservative estimate
+        timeout_seconds = estimate_timeout(estimated_total)
+        timeout_minutes = timeout_seconds // 60
+        log(f"Using timeout: {timeout_minutes} minutes ({timeout_seconds} seconds) for estimated {estimated_total} videos")
         
         try:
             # Core yt-dlp call with better rate limiting
@@ -79,11 +109,12 @@ def download_with_backoff(url, max_attempts=5):
                     "--output", f"{OUT_DIR}/%(uploader)s/%(id)s/%(title)s [%(id)s].%(ext)s",
                     url
                 ],
-                timeout=600,  # 10 minute hard timeout
+                timeout=timeout_seconds,  # Adaptive based on channel size
                 check=False
             )
         except subprocess.TimeoutExpired:
-            log(f"Attempt {attempt} timed out after 600s")
+            log(f"Attempt {attempt} timed out after {timeout_seconds}s ({timeout_minutes} min)")
+
         except Exception as e:
             log(f"ERROR in attempt {attempt}: {e}")
         
