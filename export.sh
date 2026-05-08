@@ -54,7 +54,11 @@ download_channel() {
     # Use the resilient Python downloader
     # It handles: exponential backoff, rotating user agents, batched downloads, hard timeouts
     cd "$REPO_ROOT"
-    python3 "$SRC_DIR/download_resilient.py" "$url" 5
+    # Important: when this script runs detached (CI/background jobs),
+    # stdin may be closed which can cause Python to fail initializing
+    # sys.stdin/sys.stdout/sys.stderr with "Bad file descriptor".
+    # Redirect stdin from /dev/null to guarantee a valid FD.
+    python3 "$SRC_DIR/download_resilient.py" "$url" 5 </dev/null
 
     # Quarantine any channel-listing folders yt-dlp may have created
     # (folders named @handle or UCxxx are channel metadata, not videos).
@@ -71,7 +75,7 @@ download_channel() {
 extract_metadata() {
     log_info "Extracting metadata from all .info.json files..."
     cd "$REPO_ROOT"
-    python3 "$SRC_DIR/metadata_extractor.py"
+    python3 "$SRC_DIR/metadata_extractor.py" </dev/null
 }
 
 ###############################################################################
@@ -83,10 +87,10 @@ regenerate_markdown() {
     cd "$REPO_ROOT"
     # Incremental by default (non-destructive). Use `python3 src/markdown_generator.py --clean`
     # only if you explicitly want to wipe/rebuild the markdown vault.
-    python3 "$SRC_DIR/markdown_generator.py"
+    python3 "$SRC_DIR/markdown_generator.py" </dev/null
     
     log_info "Formatting Obsidian vault structure..."
-    python3 "$SRC_DIR/obsidian_formatter.py"
+    python3 "$SRC_DIR/obsidian_formatter.py" </dev/null
 }
 
 ###############################################################################
@@ -108,10 +112,10 @@ export_to_notion() {
     if [ -n "$max_records" ]; then
         log_warn "Limiting to $max_records records"
         NOTION_DATABASE_ID="${NOTION_DATABASE_ID:-}" \
-            python3 "$SRC_DIR/notion_exporter.py" --max "$max_records"
+            python3 "$SRC_DIR/notion_exporter.py" --max "$max_records" </dev/null
     else
         NOTION_DATABASE_ID="${NOTION_DATABASE_ID:-}" \
-            python3 "$SRC_DIR/notion_exporter.py"
+            python3 "$SRC_DIR/notion_exporter.py" </dev/null
     fi
 }
 
