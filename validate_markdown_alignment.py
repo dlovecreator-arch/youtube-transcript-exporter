@@ -21,8 +21,24 @@ OUT_DIR = REPO_ROOT / 'out'
 MD_DIR = REPO_ROOT / 'markdown'
 
 def normalize_name(name):
-    """Normalize a channel name for comparison."""
-    return name.lower().replace(' ', '_').replace('-', '_').replace('⧸', '/')
+    """Ultra-aggressive normalization to catch ALL duplicate variations.
+    
+    This catches duplicates like:
+    - Kerry K vs Kerry_K
+    - John Burgos vs John_Burgos
+    - The Alchemist vs The_Alchemist
+    - André Duqum vs Andre Duqum (accents)
+    """
+    return (name
+            .lower()
+            .replace(' ', '')
+            .replace('_', '')
+            .replace('-', '')
+            .replace('.', '')
+            .replace('⧸', 'w')
+            .replace('é', 'e')
+            .replace('à', 'a')
+    )
 
 def check_alignment():
     """Verify markdown folders match out/ folders exactly."""
