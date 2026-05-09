@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 from collections import defaultdict
 
-REPO_ROOT = Path(__file__).parent
+REPO_ROOT = Path(__file__).parent.parent
 OUT_DIR = REPO_ROOT / 'out'
 MD_DIR = REPO_ROOT / 'markdown'
 

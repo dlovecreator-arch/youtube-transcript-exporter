@@ -223,13 +223,14 @@ YouTube Transcript Exporter -- Production Workflow
 
 COMMANDS:
 
-  --new-channel <URL>        Download transcripts from new YouTube channel
+  --new-channel <URL>        FULL PIPELINE: download + metadata + markdown + validate
+                             (this is the one-shot "just works" command)
   --rebuild-metadata         Extract metadata from all .info.json files
-  --rebuild-markdown         Regenerate Markdown with new frontmatter
-                             (incremental by default; does NOT wipe markdown/)
+  --rebuild-markdown         Regenerate Markdown (incremental, with validation)
+  --validate                 Check markdown/out alignment for duplicates
   --export-notion [--max N]  Export to Notion database
   --audit                    Run quality audit
-  --full-pipeline <URL>      Download + metadata + markdown (no Notion)
+  --full-pipeline <URL>      Same as --new-channel (alias)
 
 EXAMPLES:
 
@@ -262,13 +263,29 @@ main() {
                 log_error "Usage: --new-channel <URL>"
                 exit 1
             fi
+            log_info "Phase 1/4: Downloading channel..."
             download_channel "$2" "${3:-10}"
+            log_info "Phase 2/4: Extracting metadata..."
+            extract_metadata
+            log_info "Phase 3/4: Generating markdown..."
+            regenerate_markdown
+            log_info "Phase 4/4: Validating alignment..."
+            if python3 "$REPO_ROOT/tools/validate_alignment.py"; then
+                log_info "✅ Channel added cleanly. Markdown ready in: $MARKDOWN_DIR"
+            else
+                log_warn "⚠️  Alignment issues detected -- review output above."
+                exit 1
+            fi
             ;;
         --rebuild-metadata)
             extract_metadata
             ;;
         --rebuild-markdown)
             regenerate_markdown
+            python3 "$REPO_ROOT/tools/validate_alignment.py" || log_warn "Alignment issues -- see above"
+            ;;
+        --validate)
+            python3 "$REPO_ROOT/tools/validate_alignment.py"
             ;;
         --export-notion)
             export_to_notion "${2:-}"

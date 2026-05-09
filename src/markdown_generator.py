@@ -10,7 +10,9 @@ Improvements:
 - Proper string formatting for Notion API compatibility
 """
 import json
+import os
 import re
+import sys
 import math
 import argparse
 import hashlib
@@ -305,12 +307,17 @@ def sanitize_filename(name: str) -> str:
     return name[:80]
 
 def safe_channel_dir(channel: str) -> str:
-    """Normalize channel name to stable folder name."""
+    """Channel folder name MUST match out/ folder exactly (with spaces).
+
+    Per NAMING_CONVENTION.md: markdown/Channel Name/ must equal out/Channel Name/.
+    Only strip filesystem-illegal characters; preserve spaces.
+    """
     s = (channel or "Unknown").strip()
-    s = s.replace("/", "⧸")
-    s = re.sub(r"\s+", "_", s)
-    s = s.strip("_")
-    return sanitize_filename(s)
+    # Strip only truly illegal filesystem characters (no slash mangling, keep spaces)
+    s = re.sub(r'[<>:"/\\?*]', '', s)
+    # Collapse multiple spaces
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:120] or "Unknown"
 
 
 def safe_markdown_filename(title: str, video_id: str) -> str:
@@ -327,6 +334,20 @@ def main():
     parser = argparse.ArgumentParser(description="Generate markdown transcripts (incremental by default).")
     parser.add_argument("--clean", action="store_true", help="Delete markdown channel folders before regenerating (dangerous)")
     args = parser.parse_args()
+
+    # Single-instance lock: prevent multiple concurrent runs that race
+    # and recreate folders the user just deleted.
+    import fcntl
+    lock_path = REPO_ROOT / ".markdown_generator.lock"
+    lock_file = open(lock_path, "w")
+    try:
+        fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("❌ Another markdown_generator.py is already running. Exiting.")
+        print(f"   (Lock file: {lock_path})")
+        sys.exit(2)
+    lock_file.write(str(os.getpid()))
+    lock_file.flush()
 
     if args.clean:
         import shutil
