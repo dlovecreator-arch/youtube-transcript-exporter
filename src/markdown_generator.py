@@ -239,6 +239,8 @@ def process_all_transcripts():
         # Find transcript file by video_id in any channel folder
         transcript_text = None
         candidate_folders = list(OUT_BASE.glob(f"*/{video_id}"))
+        actual_channel_folder = None  # Track which out/ folder it was in
+        
         for folder in candidate_folders:
             if not folder.is_dir():
                 continue
@@ -252,6 +254,8 @@ def process_all_transcripts():
                     # Also write transcript.en.txt back to the source folder
                     # so each video folder has consistent contents.
                     (folder / "transcript.en.txt").write_text(transcript_text, encoding='utf-8')
+                    # Remember the actual channel folder name from out/
+                    actual_channel_folder = folder.parent.name
                     break
                 except Exception as e:
                     print(f"  ! Error reading {vtt_files[0]}: {e}")
@@ -264,8 +268,12 @@ def process_all_transcripts():
         # Generate Markdown
         md_content = generate_markdown(record, transcript_text)
 
-        # Create channel folder structure
-        channel_dir = MARKDOWN_BASE / safe_channel_dir(record.get('channel', 'Unknown'))
+        # Create channel folder structure using the ACTUAL name from out/
+        # This ensures markdown/ mirrors out/ exactly (avoiding pipe/slash normalization issues)
+        if actual_channel_folder:
+            channel_dir = MARKDOWN_BASE / actual_channel_folder
+        else:
+            channel_dir = MARKDOWN_BASE / safe_channel_dir(record.get('channel', 'Unknown'))
         channel_dir.mkdir(parents=True, exist_ok=True)
 
         # Stable, filesystem-safe filename. Never use raw title.

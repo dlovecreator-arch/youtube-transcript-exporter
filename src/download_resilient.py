@@ -114,7 +114,6 @@ def download_with_backoff(url, max_attempts=5):
                     "--write-auto-subs",
                     "--sub-langs", "en",
                     "--sub-format", "vtt",
-                    "--no-playlist",
                     "--socket-timeout", "8",
                     "--retries", "1",
                     "--retry-sleep", "3",
