@@ -120,7 +120,6 @@ def download_with_backoff(url, max_attempts=5):
                     "--max-sleep-interval", "10",  # Increased from 6s
                     "--sleep-interval", "3.5",  # Increased from 2.5s
                     "--sleep-requests", "2",  # Add sleep between requests
-                    "--extractor-args", "youtube:player_client=mweb",  # Use web client instead of android
                     "--ignore-errors",
                     "--no-warnings",
                     "--user-agent", user_agent,
