@@ -105,7 +105,7 @@ def download_with_backoff(url, max_attempts=5):
         log(f"Using timeout: {timeout_minutes} minutes ({timeout_seconds} seconds) for estimated {estimated_total} videos")
         
         try:
-            # Core yt-dlp call with better rate limiting
+            # Core yt-dlp call with aggressive rate limit workarounds
             subprocess.run(
                 [
                     "yt-dlp",
@@ -116,9 +116,11 @@ def download_with_backoff(url, max_attempts=5):
                     "--sub-format", "vtt",
                     "--socket-timeout", "8",
                     "--retries", "1",
-                    "--retry-sleep", "3",
-                    "--max-sleep-interval", "6",
-                    "--sleep-interval", "2.5",  # Key: increased from 1.5s
+                    "--retry-sleep", "5",  # Increased from 3s
+                    "--max-sleep-interval", "10",  # Increased from 6s
+                    "--sleep-interval", "3.5",  # Increased from 2.5s
+                    "--sleep-requests", "2",  # Add sleep between requests
+                    "--extractor-args", "youtube:player_client=mweb",  # Use web client instead of android
                     "--ignore-errors",
                     "--no-warnings",
                     "--user-agent", user_agent,
@@ -130,6 +132,9 @@ def download_with_backoff(url, max_attempts=5):
             )
         except subprocess.TimeoutExpired:
             log(f"Attempt {attempt} timed out after {timeout_seconds}s ({timeout_minutes} min)")
+            # On timeout, wait longer before retry
+            log(f"Rate-limited: waiting 30 seconds before retry...")
+            time.sleep(30)
 
         except Exception as e:
             log(f"ERROR in attempt {attempt}: {e}")
