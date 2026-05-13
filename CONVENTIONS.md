@@ -4,21 +4,52 @@ This is the **single source of truth** for how this repo is organized. Everythin
 
 ---
 
-## CRITICAL: Large Channel Handling (Fixed 2026-05-08)
+## CRITICAL: No media files in `out/` (Fixed 2026-05-13)
+
+**Problem**: Some channels (Next Level Soul Podcast, ~31 GB) ended up with raw `.mp4` files in `out/<channel>/<id>/` because an older yt-dlp invocation lacked `--skip-download`.
+
+**Solution**: All `ytx` downloads use `--skip-download` + `--write-info-json` + `--write-subs` + `--write-auto-subs`. There is no path in the new pipeline that pulls media. `ytx audit` reports stray media as a failure.
+
+If you see `.mp4` / `.mkv` / `.webm` files in `out/`, they should be quarantined to `.trash/videos/` and the audit re-run.
+
+---
+
+## CRITICAL: Idempotent re-runs via download-archive (Fixed 2026-05-13)
+
+**Problem**: Re-running a channel re-downloaded all videos every time, wasting hours and triggering rate limits.
+
+**Solution**: `ytx/downloader.py` always passes `--download-archive db/downloaded.txt`. Already-downloaded video IDs are O(1) skips on re-run.
+
+To migrate an existing install, seed the archive once:
+
+```bash
+python3 tools/seed_download_archive.py
+```
+
+---
+
+## CRITICAL: Channel name comes from folder, not info.json (Fixed 2026-05-13)
+
+**Problem**: YouTube's `channel` field carries trademarks (`Buddha at the Gas Pump®`), trailing whitespace (`THE REAL ISMAEL PEREZ `), or short handles (`GaryVee`). Humans had renamed folders for cleanliness, creating a folder/DB mismatch.
+
+**Solution**: `src/metadata_extractor.py` uses the folder name (`info_path.parent.parent.name`) as the canonical `channel` value, falling back to `data["channel"]` then `data["uploader"]`. This makes the human-curated folder names authoritative.
+
+---
+
+## CRITICAL: Large Channel Handling (Fixed 2026-05-08, extended 2026-05-13)
 
 **Problem**: Asha Nayaswami channel (1,909 videos) was timing out at 600 seconds, only capturing ~291 videos.
 
-**Solution**: `src/download_resilient.py` now uses **adaptive timeout**:
+**Solution**: `ytx/downloader.py` uses **adaptive timeout**:
 
 | Channel Size | Timeout | Applied To |
 |---|---|---|
 | < 500 videos | 600s (10 min) | Kerry K, Eluña, etc. |
 | 500-2000 videos | 3600s (60 min) | Pam Gregory, Teal Swan |
 | 2000+ videos | 7200s (120 min) | Asha Nayaswami (1909 vids) |
+| 5000+ videos | 14400s (240 min) | very large news/comedy channels |
 
-**No manual intervention needed** -- downloader auto-detects and scales timeout based on estimated channel size. Logs show which timeout is active.
-
-If a channel exceeds 2000 videos, the timeout will automatically use 120 minutes.
+**No manual intervention needed** -- downloader auto-detects and scales timeout based on observed video count.
 
 ---
 
