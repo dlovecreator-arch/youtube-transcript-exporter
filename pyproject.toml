@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "youtube-transcript-exporter"
+version = "1.0.0"
+description = "Resilient YouTube channel transcript exporter for Obsidian, RAG, and second-brain workflows"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "Daniel Love"}]
+keywords = ["youtube", "transcripts", "yt-dlp", "obsidian", "rag", "second-brain"]
+dependencies = ["pyyaml>=6.0"]
+
+[project.optional-dependencies]
+whisper = ["faster-whisper>=1.0"]
+dev = ["ruff>=0.5", "pytest>=8"]
+
+[project.scripts]
+ytx = "ytx.__main__:main"
+ytexporter = "ytexporter.__main__:main"
+
+[tool.setuptools]
+packages = ["ytx", "ytx.exporters", "ytexporter"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"

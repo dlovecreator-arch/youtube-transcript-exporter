@@ -13,6 +13,10 @@ db/*.bak*
 logs/
 archive/
 backups/
+exports/
+build/
+dist/
+*.egg-info/
 # User-specific channel list (use channels.txt.example as template).
 channels.txt
 

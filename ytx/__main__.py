@@ -7,6 +7,10 @@
     python -m ytx doctor                 # env check
     python -m ytx transcribe [--limit N] # whisper fallback
     python -m ytx export jsonl [--out path]
+    python -m ytx export chunks [--out path]
+    python -m ytx obsidian              # dashboard notes
+    python -m ytx report                # run/status report
+    python -m ytx fix [--apply]         # safe self-healing
     python -m ytx version
 
 Design: keep flags few and friendly. Delegate to existing scripts where
@@ -134,7 +138,7 @@ def cmd_fix(args: argparse.Namespace) -> int:
 def cmd_doctor(_: argparse.Namespace) -> int:
     checks = doctor_mod.run()
     print(doctor_mod.render(checks))
-    return 0 if all(c.ok for c in checks) else 2
+    return 0 if doctor_mod.required_ok(checks) else 2
 
 
 def cmd_transcribe(args: argparse.Namespace) -> int:
@@ -146,13 +150,39 @@ def cmd_transcribe(args: argparse.Namespace) -> int:
 
 
 def cmd_export(args: argparse.Namespace) -> int:
-    if args.format != "jsonl":
+    from .exporters import export_chunks, export_jsonl
+    out_path = Path(args.out)
+    if args.format == "jsonl":
+        n = export_jsonl(out_path, include_transcript=not args.no_transcript, channels=args.channel or None)
+        print(f"wrote {n} video records to {out_path}")
+    elif args.format == "chunks":
+        n = export_chunks(
+            out_path,
+            channels=args.channel or None,
+            chunk_tokens=args.chunk_tokens,
+            overlap_tokens=args.overlap_tokens,
+            max_videos=args.max_videos,
+        )
+        print(f"wrote {n} chunk records to {out_path}")
+    else:
         print(f"unknown format: {args.format}", file=sys.stderr)
         return 2
-    from .exporters import export
-    out_path = Path(args.out)
-    n = export(out_path, include_transcript=not args.no_transcript, channels=args.channel or None)
-    print(f"wrote {n} records to {out_path}")
+    return 0
+
+
+def cmd_obsidian(args: argparse.Namespace) -> int:
+    from .obsidian import generate_dashboards
+    paths = generate_dashboards(Path(args.out) if args.out else None) if args.out else generate_dashboards()
+    print(f"wrote {len(paths)} Obsidian dashboard notes:")
+    for path in paths:
+        print(f"  - {path}")
+    return 0
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    from .report import write_report
+    path = write_report(Path(args.out) if args.out else None)
+    print(f"wrote run report: {path}")
     return 0
 
 
@@ -223,11 +253,22 @@ def build_parser() -> argparse.ArgumentParser:
     t.set_defaults(func=cmd_transcribe)
 
     e = sub.add_parser("export", help="Export the dataset")
-    e.add_argument("format", choices=["jsonl"])
+    e.add_argument("format", choices=["jsonl", "chunks"])
     e.add_argument("--out", default="exports/transcripts.jsonl")
     e.add_argument("--channel", action="append", help="Filter to one or more channels (repeat)")
     e.add_argument("--no-transcript", action="store_true", help="Skip transcript text")
+    e.add_argument("--chunk-tokens", type=int, default=800, help="Approximate max tokens per chunk export record")
+    e.add_argument("--overlap-tokens", type=int, default=120, help="Approximate overlap tokens for chunk export")
+    e.add_argument("--max-videos", type=int, default=None, help="Limit videos for smoke tests/sampling")
     e.set_defaults(func=cmd_export)
+
+    ob = sub.add_parser("obsidian", help="Generate Obsidian dashboard/index notes")
+    ob.add_argument("--out", help="Output vault directory (default: markdown/)")
+    ob.set_defaults(func=cmd_obsidian)
+
+    rp = sub.add_parser("report", help="Write a timestamped status/audit/doctor run report")
+    rp.add_argument("--out", help="Output markdown report path (default: logs/runs/ytx_report_<timestamp>.md)")
+    rp.set_defaults(func=cmd_report)
 
     m = sub.add_parser("metadata", help="Rebuild canonical.json from out/")
     m.set_defaults(func=cmd_metadata)

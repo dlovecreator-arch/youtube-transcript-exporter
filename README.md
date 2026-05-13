@@ -62,6 +62,13 @@ python -m ytx transcribe --model small
 
 # Export for RAG / embeddings
 python -m ytx export jsonl --out exports/transcripts.jsonl
+python -m ytx export chunks --out exports/chunks.jsonl
+
+# Generate Obsidian vault dashboards
+python -m ytx obsidian
+
+# Write a timestamped maintenance report
+python -m ytx report
 
 # Diagnose your environment
 python -m ytx doctor
@@ -110,7 +117,7 @@ youtube_transcript_exporter/
 ├── db/downloaded.txt        # yt-dlp idempotency archive
 ├── markdown/                # Obsidian-ready vault
 ├── archive/                 # Historical reports, never read by code
-├── tests/smoke_test.sh      # 7-step sanity check
+├── tests/smoke_test.sh      # 10-step sanity check
 └── export.sh                # Stable shell entrypoint (legacy)
 ```
 
@@ -141,12 +148,20 @@ Every video lands in `db/canonical.json`:
 
 ```bash
 python -m ytx export jsonl --out exports/transcripts.jsonl
+python -m ytx export chunks --out exports/chunks.jsonl
 ```
 
-Produces one JSON record per line with:
+Video-level JSONL produces one JSON record per line with:
 - canonical metadata
 - cleaned transcript text (VTT parsed + adjacent-line deduped)
 - stable `source_id` for citation back to YouTube
+
+Chunk-level JSONL produces timestamped records with:
+- `chunk_id`
+- `start_seconds` / `end_seconds`
+- `url_at_timestamp`
+- `text`
+- metadata copied from the source video
 
 Drop the JSONL into any embedding pipeline (LlamaIndex, LangChain, Vectara, custom).
 
@@ -210,6 +225,7 @@ This dramatically reduces rate limiting because yt-dlp authenticates as you. Sta
 |------|---------|
 | [`QUICKSTART.md`](QUICKSTART.md) | 5-minute setup |
 | [`INSTALL.md`](INSTALL.md) | Detailed install per OS |
+| [`docs/RAG_AND_OBSIDIAN.md`](docs/RAG_AND_OBSIDIAN.md) | RAG chunk export, Obsidian dashboards, run reports |
 | [`CONVENTIONS.md`](CONVENTIONS.md) | The single source of truth for layout + naming + lessons learned |
 | [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) | Solve common problems |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to help |

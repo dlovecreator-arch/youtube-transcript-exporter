@@ -54,6 +54,13 @@ Open `markdown/` as an Obsidian vault, or:
 ```bash
 # Export everything as JSONL for RAG / embeddings
 python -m ytx export jsonl --out exports/transcripts.jsonl
+python -m ytx export chunks --out exports/chunks.jsonl
+
+# Generate Obsidian dashboard notes
+python -m ytx obsidian
+
+# Write a timestamped maintenance report
+python -m ytx report
 
 # Refresh all channels
 python -m ytx update
@@ -83,6 +90,7 @@ python -m ytx add channels.txt
 ## What's next
 
 - [`README.md`](README.md) for the philosophy + full reliability story
+- [`docs/RAG_AND_OBSIDIAN.md`](docs/RAG_AND_OBSIDIAN.md) for chunk exports, Obsidian dashboards, and run reports
 - [`CONVENTIONS.md`](CONVENTIONS.md) for the layout rules and lessons learned
 - [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) if anything fights you
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) to add features or new exporters
