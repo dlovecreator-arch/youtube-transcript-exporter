@@ -40,6 +40,7 @@ This will:
 ## 4. Check what you've got
 
 ```bash
+python -m ytx status
 python -m ytx audit
 ```
 

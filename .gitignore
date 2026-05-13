@@ -5,10 +5,14 @@
 out/
 # Generated Obsidian vault.
 markdown/
-# User-specific metadata DB.
+# User-specific metadata DB and runtime state.
 db/canonical.json
+db/downloaded.txt
+db/*.bak*
 # Personal logs/old reports.
+logs/
 archive/
+backups/
 # User-specific channel list (use channels.txt.example as template).
 channels.txt
 

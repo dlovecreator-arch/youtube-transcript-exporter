@@ -42,6 +42,9 @@ python -m ytx add channels.txt
 # Refresh everything you've ever added
 python -m ytx update
 
+# Quick local dashboard
+python -m ytx status
+
 # Health check (alignment, captions, orphans, bloat)
 python -m ytx audit
 

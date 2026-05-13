@@ -3,6 +3,7 @@
     python -m ytx add <url|file>         # download + extract + markdown
     python -m ytx update                 # re-run for all channels.txt
     python -m ytx audit                  # health report
+    python -m ytx status                # quick dashboard
     python -m ytx doctor                 # env check
     python -m ytx transcribe [--limit N] # whisper fallback
     python -m ytx export jsonl [--out path]
@@ -19,7 +20,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, audit as audit_mod, doctor as doctor_mod
+from . import __version__, audit as audit_mod, doctor as doctor_mod, status as status_mod
 from .config import CHANNELS_FILE, REPO_ROOT
 from .downloader import DownloadOptions, download_channel, download_from_file
 
@@ -89,6 +90,11 @@ def cmd_audit(args: argparse.Namespace) -> int:
     return 0 if rep.ok else 2
 
 
+def cmd_status(_: argparse.Namespace) -> int:
+    print(status_mod.render(status_mod.collect()))
+    return 0
+
+
 def cmd_doctor(_: argparse.Namespace) -> int:
     checks = doctor_mod.run()
     print(doctor_mod.render(checks))
@@ -152,6 +158,9 @@ def build_parser() -> argparse.ArgumentParser:
     ad = sub.add_parser("audit", help="Print health/alignment report")
     ad.add_argument("--write", help="Also write to file")
     ad.set_defaults(func=cmd_audit)
+
+    st = sub.add_parser("status", help="Show quick local dataset dashboard")
+    st.set_defaults(func=cmd_status)
 
     d = sub.add_parser("doctor", help="Diagnose environment")
     d.set_defaults(func=cmd_doctor)

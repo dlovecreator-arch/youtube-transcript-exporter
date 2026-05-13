@@ -240,7 +240,7 @@ reading_time_minutes: 24
 (transcript text)
 ```
 
-This is read directly by Obsidian (Dataview), Notion API, and any future LLM-RAG layer. **Do not change the schema** without updating `markdown_generator.py` and re-running `--rebuild-markdown`.
+This is read directly by Obsidian (Dataview) and any future LLM/RAG layer. **Do not change the schema** without updating `markdown_generator.py` and re-running `--rebuild-markdown`.
 
 ---
 
