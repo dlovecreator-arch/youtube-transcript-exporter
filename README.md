@@ -45,8 +45,17 @@ python -m ytx update
 # Quick local dashboard
 python -m ytx status
 
-# Health check (alignment, captions, orphans, bloat)
+# Safe self-healing dry-run / apply
+python -m ytx fix
+python -m ytx fix --apply
+
+# Fast health check or full health check
+python -m ytx audit --quick --warn-ok
 python -m ytx audit
+
+# Generate markdown only for missing channel folders or one channel
+python -m ytx markdown --missing-only
+python -m ytx markdown --channel "Chris Williamson"
 
 # Fill caption gaps with Whisper (opt-in)
 python -m ytx transcribe --model small

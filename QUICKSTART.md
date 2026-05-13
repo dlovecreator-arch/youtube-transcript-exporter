@@ -41,7 +41,8 @@ This will:
 
 ```bash
 python -m ytx status
-python -m ytx audit
+python -m ytx audit --quick --warn-ok
+python -m ytx fix          # dry-run safe repair plan
 ```
 
 Reports counts, caption coverage, alignment, and any drift. Exit code is 0 when healthy.
@@ -56,6 +57,10 @@ python -m ytx export jsonl --out exports/transcripts.jsonl
 
 # Refresh all channels
 python -m ytx update
+
+# Fast markdown generation modes
+python -m ytx markdown --missing-only
+python -m ytx markdown --channel "Channel Name"
 
 # Fill caption gaps with Whisper (optional)
 pip install faster-whisper

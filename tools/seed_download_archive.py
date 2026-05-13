@@ -8,7 +8,6 @@ Idempotent: never duplicates entries.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -25,17 +24,14 @@ def main() -> None:
             if len(parts) >= 2:
                 existing.add(parts[1])
 
-    found: set[str] = set()
-    n = 0
-    for info in OUT.glob("*/*/*.info.json"):
-        n += 1
-        try:
-            data = json.loads(info.read_text(errors="ignore"))
-        except Exception:
-            continue
-        vid = data.get("id")
-        if vid and isinstance(vid, str) and len(vid) == 11 and not vid.startswith("UC"):
-            found.add(vid)
+    # Use canonical folder names instead of parsing every .info.json. This is
+    # much faster on large corpora and matches the enforced layout:
+    # out/<channel>/<video_id>/.
+    folders = [
+        p for p in OUT.glob("*/*")
+        if p.is_dir() and p.name != "_channel_meta" and len(p.name) == 11 and not p.name.startswith("UC")
+    ]
+    found = {p.name for p in folders}
 
     new = found - existing
     if new:
@@ -44,7 +40,7 @@ def main() -> None:
                 fh.write(f"youtube {vid}\n")
 
     total = len(existing | found)
-    print(f"scanned: {n} info.json files")
+    print(f"scanned: {len(folders)} video folders")
     print(f"added:   {len(new)} new ids to download archive")
     print(f"total:   {total} ids in {ARCHIVE.relative_to(REPO_ROOT)}")
 

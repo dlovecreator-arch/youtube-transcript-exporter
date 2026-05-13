@@ -73,7 +73,7 @@ class AuditReport:
         return "\n".join(lines)
 
 
-def run() -> AuditReport:
+def run(full: bool = True, log_result: bool = True) -> AuditReport:
     rep = AuditReport()
 
     # DB
@@ -102,12 +102,15 @@ def run() -> AuditReport:
     vtt_total = sum(1 for _ in OUT_DIR.glob("*/*/*.en*.vtt"))
     rep.caption_coverage_pct = (vtt_total / info_total * 100) if info_total else 0.0
 
-    # orphan vtts -- vtt without sibling info.json in same folder
-    orphan_count = 0
-    for vtt in OUT_DIR.glob("*/*/*.en*.vtt"):
-        if not list(vtt.parent.glob("*.info.json")):
-            orphan_count += 1
-    rep.orphan_vtts = orphan_count
+    if full:
+        # orphan vtts -- vtt without sibling info.json in same folder
+        orphan_count = 0
+        for vtt in OUT_DIR.glob("*/*/*.en*.vtt"):
+            if not list(vtt.parent.glob("*.info.json")):
+                orphan_count += 1
+        rep.orphan_vtts = orphan_count
+    else:
+        rep.notes.append("quick mode: skipped orphan VTT scan")
 
     # alignment
     rep.missing_markdown_channels = sorted(out_channels - md_channels - {"_channel_meta"})
@@ -119,9 +122,12 @@ def run() -> AuditReport:
             if p.is_dir() and p.name != p.name.strip():
                 rep.whitespace_folders.append(str(p))
 
-    # media bloat
-    rep.media_files = sum(1 for _ in OUT_DIR.rglob("*.mp4")) + sum(1 for _ in OUT_DIR.rglob("*.mkv")) + sum(1 for _ in OUT_DIR.rglob("*.webm"))
-    rep.part_files = sum(1 for _ in OUT_DIR.rglob("*.part"))
+    if full:
+        # media bloat
+        rep.media_files = sum(1 for _ in OUT_DIR.rglob("*.mp4")) + sum(1 for _ in OUT_DIR.rglob("*.mkv")) + sum(1 for _ in OUT_DIR.rglob("*.webm"))
+        rep.part_files = sum(1 for _ in OUT_DIR.rglob("*.part"))
+    else:
+        rep.notes.append("quick mode: skipped recursive media/.part scan")
 
     rep.ok = (
         not rep.missing_markdown_channels
@@ -130,12 +136,13 @@ def run() -> AuditReport:
         and rep.media_files == 0
         and rep.part_files == 0
     )
-    log.info(
-        "audit_complete",
-        ok=rep.ok,
-        db_videos=rep.videos_in_db,
-        out_folders=rep.out_video_folders,
-        md_files=rep.markdown_files,
-        caption_pct=round(rep.caption_coverage_pct, 1),
-    )
+    if log_result:
+        log.info(
+            "audit_complete",
+            ok=rep.ok,
+            db_videos=rep.videos_in_db,
+            out_folders=rep.out_video_folders,
+            md_files=rep.markdown_files,
+            caption_pct=round(rep.caption_coverage_pct, 1),
+        )
     return rep

@@ -41,7 +41,7 @@ assert '--no-abort-on-error' in argv, 'no-abort flag missing'
 " || fail "argv build"
 pass "downloader argv shape"
 
-echo "[7/7] exporter dry-run (no transcripts needed)"
+echo "[7/9] exporter dry-run (no transcripts needed)"
 python3 -c "
 from ytx.exporters import _vtt_to_text
 sample = '''WEBVTT
@@ -61,6 +61,14 @@ assert 'Hello world' in out and 'Goodbye' in out, out
 assert out.count('Hello world') == 1, 'dedup failed: ' + out
 " || fail "vtt parsing"
 pass "vtt parse + dedup"
+
+echo "[8/9] ytx quick audit JSON is parseable"
+python3 -m ytx audit --quick --json --warn-ok | python3 -c "import json,sys; d=json.load(sys.stdin); assert 'videos_in_db' in d"
+pass "quick audit JSON"
+
+echo "[9/9] ytx fix dry-run works"
+python3 -m ytx fix >/dev/null || fail "ytx fix"
+pass "fix dry-run"
 
 echo
 echo "${GREEN}ALL SMOKE TESTS PASSED${NC}"

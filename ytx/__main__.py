@@ -16,11 +16,12 @@ parts (download, transcribe, audit, export).
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 from pathlib import Path
 
-from . import __version__, audit as audit_mod, doctor as doctor_mod, status as status_mod
+from . import __version__, audit as audit_mod, doctor as doctor_mod, fix as fix_mod, status as status_mod
 from .config import CHANNELS_FILE, REPO_ROOT
 from .downloader import DownloadOptions, download_channel, download_from_file
 
@@ -29,8 +30,11 @@ def _run_metadata() -> int:
     return subprocess.call([sys.executable, str(REPO_ROOT / "src" / "metadata_extractor.py")], cwd=REPO_ROOT)
 
 
-def _run_markdown() -> int:
-    return subprocess.call([sys.executable, str(REPO_ROOT / "src" / "markdown_generator.py")], cwd=REPO_ROOT)
+def _run_markdown(extra_args: list[str] | None = None) -> int:
+    cmd = [sys.executable, str(REPO_ROOT / "src" / "markdown_generator.py")]
+    if extra_args:
+        cmd.extend(extra_args)
+    return subprocess.call(cmd, cwd=REPO_ROOT)
 
 
 def cmd_add(args: argparse.Namespace) -> int:
@@ -82,16 +86,48 @@ def cmd_update(args: argparse.Namespace) -> int:
 
 
 def cmd_audit(args: argparse.Namespace) -> int:
-    rep = audit_mod.run()
-    out = rep.render()
-    print(out)
-    if args.write:
-        Path(args.write).write_text(out + "\n")
-    return 0 if rep.ok else 2
+    rep = audit_mod.run(full=not args.quick, log_result=not args.json)
+    if args.json:
+        print(json.dumps(rep.__dict__, indent=2, default=str))
+    elif args.fix_plan:
+        lines = ["# ytx audit fix plan", ""]
+        if rep.media_files:
+            lines.append("- CRITICAL: quarantine stray media files from out/ to .trash/videos/.")
+        if rep.part_files:
+            lines.append("- WARN: quarantine .part files from interrupted downloads.")
+        if rep.whitespace_folders:
+            lines.append("- WARN: normalize folders with leading/trailing whitespace.")
+        if rep.missing_db_channels:
+            lines.append("- CRITICAL: run `python3 -m ytx metadata` to rebuild canonical DB from out/.")
+        if rep.missing_markdown_channels:
+            lines.append("- WARN: run `python3 -m ytx markdown --missing-only` when you want to generate missing channel markdown.")
+            for ch in rep.missing_markdown_channels:
+                lines.append(f"  - missing markdown: {ch}")
+        if rep.orphan_vtts:
+            lines.append("- INFO: inspect orphan .vtt files; usually captions without sibling info.json.")
+        if len(lines) == 2:
+            lines.append("- No fixes needed.")
+        print("\n".join(lines))
+    else:
+        out = rep.render()
+        print(out)
+        if args.write:
+            Path(args.write).write_text(out + "\n")
+    return 0 if (rep.ok or args.warn_ok) else 2
 
 
 def cmd_status(_: argparse.Namespace) -> int:
     print(status_mod.render(status_mod.collect()))
+    return 0
+
+
+def cmd_fix(args: argparse.Namespace) -> int:
+    plan = fix_mod.build_plan()
+    print(fix_mod.render_plan(plan))
+    if args.apply:
+        if not plan.needs_work:
+            return 0
+        return fix_mod.apply()
     return 0
 
 
@@ -124,8 +160,15 @@ def cmd_metadata(_: argparse.Namespace) -> int:
     return _run_metadata()
 
 
-def cmd_markdown(_: argparse.Namespace) -> int:
-    return _run_markdown()
+def cmd_markdown(args: argparse.Namespace) -> int:
+    extra: list[str] = []
+    for channel in args.channel or []:
+        extra += ["--channel", channel]
+    if args.missing_only:
+        extra.append("--missing-only")
+    if args.clean:
+        extra.append("--clean")
+    return _run_markdown(extra)
 
 
 def cmd_version(_: argparse.Namespace) -> int:
@@ -157,10 +200,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     ad = sub.add_parser("audit", help="Print health/alignment report")
     ad.add_argument("--write", help="Also write to file")
+    ad.add_argument("--json", action="store_true", help="Output machine-readable JSON")
+    ad.add_argument("--fix-plan", action="store_true", help="Output suggested safe repair commands/actions")
+    ad.add_argument("--quick", action="store_true", help="Skip expensive recursive scans")
+    ad.add_argument("--warn-ok", action="store_true", help="Exit 0 even when only warnings are present")
     ad.set_defaults(func=cmd_audit)
 
     st = sub.add_parser("status", help="Show quick local dataset dashboard")
     st.set_defaults(func=cmd_status)
+
+    fx = sub.add_parser("fix", help="Plan/apply safe self-healing repairs")
+    fx.add_argument("--apply", action="store_true", help="Apply safe repairs. Default is dry-run plan only.")
+    fx.set_defaults(func=cmd_fix)
 
     d = sub.add_parser("doctor", help="Diagnose environment")
     d.set_defaults(func=cmd_doctor)
@@ -182,6 +233,9 @@ def build_parser() -> argparse.ArgumentParser:
     m.set_defaults(func=cmd_metadata)
 
     md = sub.add_parser("markdown", help="Generate markdown vault from canonical.json")
+    md.add_argument("--channel", action="append", help="Only generate this exact channel (repeatable)")
+    md.add_argument("--missing-only", action="store_true", help="Only generate channels without markdown folders")
+    md.add_argument("--clean", action="store_true", help="Delete markdown channel folders before regenerating (dangerous)")
     md.set_defaults(func=cmd_markdown)
 
     v = sub.add_parser("version", help="Print ytx version")

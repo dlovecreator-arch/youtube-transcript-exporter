@@ -17,7 +17,6 @@ import math
 import argparse
 import hashlib
 from pathlib import Path
-from datetime import datetime
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_FILE = REPO_ROOT / "db" / "canonical.json"
@@ -143,6 +142,7 @@ def generate_markdown(record: dict, transcript_text: str) -> str:
     token_count = estimate_tokens(transcript_text)
     reading_time = estimate_reading_time(transcript_text)
     slug = slugify(record["title"])
+    generated_marker = record.get("captured_date") or record.get("date") or "unknown"
     
     # Format sources as comma-separated (Notion compatible)
     sources_str = ", ".join(record.get("sources", []))
@@ -173,7 +173,7 @@ reading_time_min: {reading_time}
 language: en
 transcript_complete: {len(transcript_text) > 100}
 sources: {sources_str}
-generated: {datetime.now().isoformat()}
+generated: {generated_marker}
 ---
 """
     
@@ -198,12 +198,31 @@ generated: {datetime.now().isoformat()}
 
 ---
 
-*Automatically extracted from YouTube captions. Last updated {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} UTC*
+*Automatically extracted from YouTube captions by YouTube Transcript Exporter.*
 """
     
     return frontmatter + "\n" + content
 
-def process_all_transcripts():
+def build_video_folder_index() -> dict[str, Path]:
+    """Build O(1) lookup from video_id -> out/<channel>/<video_id> folder.
+
+    The old implementation did `OUT_BASE.glob(f"*/{video_id}")` once per
+    record. On a 29k-video corpus that repeatedly scans the same directories
+    and can take 10+ minutes. This index walks out/ once and makes markdown
+    generation scale linearly.
+    """
+    index: dict[str, Path] = {}
+    for folder in OUT_BASE.glob("*/*"):
+        if not folder.is_dir() or folder.name == "_channel_meta":
+            continue
+        # Real YouTube video IDs are 11 chars. Skip playlist/channel meta dirs.
+        if len(folder.name) != 11 or folder.name.startswith("UC"):
+            continue
+        index.setdefault(folder.name, folder)
+    return index
+
+
+def process_all_transcripts(channels: set[str] | None = None, missing_only: bool = False):
     """Generate Markdown for all videos in canonical DB.
 
     IMPORTANT: This is incremental by default.
@@ -222,7 +241,19 @@ def process_all_transcripts():
         return
     
     videos = db.get("videos", [])
+
+    if channels:
+        videos = [v for v in videos if v.get("channel") in channels]
+
+    if missing_only:
+        md_channels = {p.name for p in MARKDOWN_BASE.iterdir() if p.is_dir()} if MARKDOWN_BASE.exists() else set()
+        videos = [v for v in videos if v.get("channel") not in md_channels]
+
     print(f"Processing {len(videos)} videos...")
+    if channels:
+        print(f"  Channel filter: {', '.join(sorted(channels))}")
+    if missing_only:
+        print("  Mode: missing markdown channel folders only")
 
     # Non-destructive by default. We never wipe markdown/ during normal runs.
     MARKDOWN_BASE.mkdir(exist_ok=True)
@@ -233,12 +264,17 @@ def process_all_transcripts():
         "error": 0,
     }
 
+    print("Building video folder index...")
+    folder_index = build_video_folder_index()
+    print(f"  Indexed {len(folder_index)} video folders")
+
     for i, record in enumerate(videos, 1):
         video_id = record['id']
 
-        # Find transcript file by video_id in any channel folder
+        # Find transcript file by video_id using the O(1) folder index.
         transcript_text = None
-        candidate_folders = list(OUT_BASE.glob(f"*/{video_id}"))
+        indexed_folder = folder_index.get(video_id)
+        candidate_folders = [indexed_folder] if indexed_folder else []
         actual_channel_folder = None  # Track which out/ folder it was in
         
         for folder in candidate_folders:
@@ -341,6 +377,8 @@ def sha256_text(text: str) -> str:
 def main():
     parser = argparse.ArgumentParser(description="Generate markdown transcripts (incremental by default).")
     parser.add_argument("--clean", action="store_true", help="Delete markdown channel folders before regenerating (dangerous)")
+    parser.add_argument("--channel", action="append", help="Only generate markdown for this exact channel name (repeatable)")
+    parser.add_argument("--missing-only", action="store_true", help="Only generate channels that do not yet have markdown folders")
     args = parser.parse_args()
 
     # Single-instance lock: prevent multiple concurrent runs that race
@@ -363,7 +401,7 @@ def main():
             if child.is_dir():
                 shutil.rmtree(child)
 
-    process_all_transcripts()
+    process_all_transcripts(channels=set(args.channel or []), missing_only=args.missing_only)
 
 
 if __name__ == "__main__":
