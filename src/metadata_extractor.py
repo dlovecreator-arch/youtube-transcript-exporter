@@ -84,14 +84,21 @@ def build_canonical_db():
     video_by_id = {}  # Track duplicates
     
     for info_path in sorted(OUT_BASE.rglob("*.info.json")):
+        # Skip quarantined channel metadata folders. These hold @handle/UCxxx
+        # channel-listing metadata, not video records, and must never become
+        # canonical channels.
+        if "_channel_meta" in info_path.parts:
+            continue
+
         try:
             data = json.loads(info_path.read_text(errors="ignore"))
         except:
             continue
         
-        # Skip channel metadata
-        video_id = data.get("id", "")
-        if not video_id or video_id.startswith("UC"):
+        # Skip channel metadata and malformed IDs. Real YouTube video IDs are
+        # exactly 11 chars. Channel IDs are usually UC + 22 chars.
+        video_id = (data.get("id") or "").strip()
+        if not video_id or video_id.startswith("UC") or len(video_id) != 11:
             continue
         
         # Build canonical record
