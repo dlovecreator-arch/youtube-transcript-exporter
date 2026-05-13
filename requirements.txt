@@ -1,17 +1,15 @@
-# YouTube Transcript Exporter - Dependencies
-# Production-grade Python package requirements
+# YouTube Transcript Exporter -- runtime dependencies
+#
+# Core pipeline uses only the Python standard library; ytx imports these
+# only when needed and falls back gracefully if missing.
+#
+# Required at runtime:
+#   yt-dlp (installed via brew/pipx/winget, not pip in production runs)
+#
+# Optional, opt-in by feature:
+#   pyyaml          -- nicer YAML frontmatter in markdown output
+#   faster-whisper  -- local fallback transcription for caption-less videos
+#                      Needs ffmpeg dev headers; see INSTALL.md
 
-# No external dependencies required for core functionality.
-# This project is built on Python standard library only.
-#
-# Python Version: 3.9+
-#
-# Optional dependencies for enhanced functionality:
-# - yt-dlp (for direct YouTube downloads, if YouTube API fails)
-# - requests (for HTTP operations, included in yt-dlp)
-#
-# Install with:
-#   pip install -r requirements.txt
-#
-# For development/testing:
-#   pip install -r requirements-dev.txt
+pyyaml>=6.0
+# faster-whisper >= 1.0      # uncomment if you want Whisper fallback at install time

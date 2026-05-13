@@ -1,653 +1,103 @@
-# Troubleshooting Guide
+# Troubleshooting
 
-## Quick Diagnosis
+Start here: `python3 -m ytx doctor && python3 -m ytx audit`. Most problems are visible from those two commands.
 
-Start here: Run the health check and capture the output.
+## Cheat sheet
+
+| Symptom | First fix |
+|---|---|
+| Channel only downloads 8 videos | Tool auto-retries with root URL. If still bad, use the channel ID URL or `--cookies-from-browser` |
+| `HTTP Error 429: Too Many Requests` | `ytx add <url> --cookies-from-browser chrome`, slow down with `--sleep-requests 3`, or VPN |
+| `Sign in to confirm you're not a bot` | Cookies-from-browser is the fastest fix |
+| `yt-dlp` errors after a YouTube site change | `yt-dlp -U` or `brew upgrade yt-dlp` |
+| `Bad file descriptor` in detached/background runs | Already handled in `export.sh` (stdin redirected). For new scripts, redirect `stdin=subprocess.DEVNULL` |
+| `out/` has @handle or UCxxx folders | Auto-quarantined to `_channel_meta/` by the downloader. Safe to ignore |
+| Partial `.part` files | Quarantined to `.trash/parts/` by cleanup; delete `.trash/` when you've verified |
+| Stray `.mp4` files in `out/` | Should not happen with default flags. If they appear: `find out -name '*.mp4' -delete` |
+| `faster_whisper` install fails | Needs ffmpeg dev headers; see INSTALL.md |
+| Hung downloads | Adaptive timeout will kill after 10/60/120/240 min. Re-run; the archive makes it resume from where you stopped |
+
+## Rate limiting (the big one)
+
+YouTube rate-limits aggressive bulk extraction. Symptoms: hangs, repeated 429s, captcha pages, "sign in to confirm" errors.
+
+In rough order of effectiveness:
+
+1. **Cookies from your logged-in browser**:
+   ```bash
+   python3 -m ytx add <url> --cookies-from-browser chrome
+   ```
+   You authenticate as yourself. Far higher per-account rate limits.
+
+2. **VPN / different IP**. Especially helpful after a hard block.
+
+3. **Slow down**:
+   ```bash
+   python3 -m ytx add <url> --proxy http://localhost:1080
+   # plus, in code or env, increase sleep_requests / sleep_interval
+   ```
+
+4. **Run during off-peak hours** (US night, your evening).
+
+5. **Smaller batches**: split channels.txt into chunks and run sequentially.
+
+## "I added the same channel twice"
+
+It's idempotent. yt-dlp's `--download-archive db/downloaded.txt` skips already-downloaded videos. The metadata extractor dedupes by `id`. You can also run cleanup tools:
 
 ```bash
-python3 system_health_check.py > health_report.txt 2>&1
+python3 tools/merge_channels.py --dry-run    # show plan
+python3 tools/merge_channels.py              # execute
 ```
 
-Then search this document for your symptoms.
-
-## Common Issues & Solutions
-
-### Issue: "command not found: python3"
-
-**Symptoms**:
-```
-bash: python3: command not found
-```
-
-**Causes**:
-- Python not installed
-- Python not in PATH
-- Wrong python version
-
-**Solutions**:
-
-1. **Check if Python is installed**:
-   ```bash
-   which python
-   python --version
-   ```
-
-2. **Install Python** (if not installed):
-   ```bash
-   # macOS
-   brew install python3
-
-   # Ubuntu/Debian
-   sudo apt-get install python3
-
-   # Fedora
-   sudo dnf install python3
-
-   # Windows (WSL2)
-   sudo apt-get install python3
-   ```
-
-3. **Add Python to PATH** (if installed but not found):
-   ```bash
-   export PATH="/usr/local/bin:$PATH"
-   ```
-
-4. **Use python instead of python3**:
-   ```bash
-   python --version
-   python system_health_check.py
-   ```
-
-### Issue: "No such file or directory: db/canonical.json"
-
-**Symptoms**:
-```
-FileNotFoundError: [Errno 2] No such file or directory: 'db/canonical.json'
-```
-
-**Causes**:
-- Database not initialized
-- Wrong working directory
-- Directory structure not created
-
-**Solutions**:
-
-1. **Create directory structure**:
-   ```bash
-   mkdir -p db out markdown logs
-   ```
-
-2. **Initialize database**:
-   ```bash
-   python3 << 'EOF'
-   import json
-   db = {
-       "videos": [],
-       "metadata": {
-           "total_videos": 0,
-           "total_channels": 0,
-           "last_sync": None,
-           "version": "1.0"
-       }
-   }
-   with open("db/canonical.json", "w") as f:
-       json.dump(db, f, indent=2)
-   EOF
-   ```
-
-3. **Verify working directory**:
-   ```bash
-   pwd
-   ls -la db/canonical.json
-   ```
-
-### Issue: "Permission denied: export.sh"
-
-**Symptoms**:
-```
-bash: ./export.sh: Permission denied
-```
-
-**Causes**:
-- Script not executable
-- File system read-only
-
-**Solutions**:
-
-1. **Make script executable**:
-   ```bash
-   chmod +x *.sh
-   chmod +x src/*.py
-   ```
-
-2. **Check file permissions**:
-   ```bash
-   ls -la export.sh
-   # Should show: -rwxr-xr-x
-   ```
-
-3. **If on read-only filesystem**:
-   ```bash
-   # Check mount
-   mount | grep "$(pwd)"
-   
-   # Try remounting read-write
-   sudo mount -o remount,rw /path/to/mount
-   ```
-
-### Issue: "Disk quota exceeded"
-
-**Symptoms**:
-```
-IOError: [Errno 28] No space left on device
-```
-
-**Causes**:
-- Disk is full
-- Quota exceeded
-- Large downloads taking space
-
-**Solutions**:
-
-1. **Check disk space**:
-   ```bash
-   df -h
-   du -sh ./out ./markdown ./db
-   ```
-
-2. **Clean old data**:
-   ```bash
-   # Remove old channel downloads (example)
-   rm -rf out/channel_name_old/
-   
-   # Remove temporary files
-   rm -rf .tmp/*
-   
-   # Clean old exports
-   find markdown -mtime +30 -delete
-   ```
-
-3. **Move to larger disk**:
-   ```bash
-   # Move data directory
-   mv out /mnt/larger_disk/
-   ln -s /mnt/larger_disk/out ./out
-   ```
-
-4. **Increase quota** (if on shared system):
-   ```bash
-   # Contact system administrator
-   # Check current quota
-   quota
-   ```
-
-### Issue: "YouTube API quota exceeded"
-
-**Symptoms**:
-```
-HttpError: 403 Client Error: Forbidden
-quota exceeded
-```
-
-**Causes**:
-- Used all daily quota (10,000 units/day by default)
-- Too many requests too quickly
-- API key rate limited
-
-**Solutions**:
-
-1. **Wait for quota reset**:
-   - Quota resets daily at midnight PT
-   - Check your quota at [Google Cloud Console](https://console.cloud.google.com/apis/dashboard)
-
-2. **Implement exponential backoff** (automatic in latest version):
-   ```bash
-   # Re-run download (will wait and retry)
-   ./download_parallel.sh CHANNEL_URL
-   ```
-
-3. **Increase quota limits**:
-   - Go to [Google Cloud Console](https://console.cloud.google.com/apis/api/youtube.googleapis.com/quota)
-   - Request quota increase (usually approved in 1-2 days)
-
-4. **Use multiple API keys** (for production):
-   ```bash
-   # Edit config.json
-   {
-     "youtube_api_keys": [
-       "KEY1",
-       "KEY2",
-       "KEY3"
-     ]
-   }
-   ```
-
-5. **Optimize API usage**:
-   ```bash
-   # Use caching
-   ./download_parallel.sh CHANNEL_URL --use-cache
-
-   # Download only new videos
-   ./download_parallel.sh CHANNEL_URL --incremental
-   ```
-
-### Issue: "Connection timeout"
-
-**Symptoms**:
-```
-TimeoutError: Download timed out after 300 seconds
-urllib.error.URLError: _ssl.c:1129: The handshake operation timed out
-```
-
-**Causes**:
-- Network latency
-- Server slow response
-- Firewall blocking
-- ISP throttling
-
-**Solutions**:
-
-1. **Increase timeout**:
-   ```bash
-   # Edit config.json
-   {
-     "download_timeout": 600  # 10 minutes instead of 5
-   }
-   ```
-
-2. **Check network**:
-   ```bash
-   # Test connectivity
-   ping youtube.com
-   
-   # Check DNS
-   nslookup youtube.com
-   
-   # Test YouTube directly
-   curl -I https://www.youtube.com
-   ```
-
-3. **Try VPN/proxy** (if YouTube blocked):
-   ```bash
-   # Configure in config.json
-   {
-     "proxy": "http://proxy.example.com:8080"
-   }
-   ```
-
-4. **Retry with backoff**:
-   ```bash
-   # Automatic retry (built-in)
-   # Or manual retry with delay
-   sleep 60 && ./download_parallel.sh CHANNEL_URL
-   ```
-
-5. **Check ISP throttling**:
-   - Change download time (off-peak hours)
-   - Reduce parallel workers: `--workers 1`
-
-### Issue: "Invalid JSON in database"
-
-**Symptoms**:
-```
-json.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
-```
-
-**Causes**:
-- Corrupted database file
-- Incomplete write
-- Disk error
-
-**Solutions**:
-
-1. **Backup and restore**:
-   ```bash
-   # Backup
-   cp db/canonical.json db/canonical.json.backup
-   
-   # Check last good backup
-   ls -lh db/canonical.json*
-   ```
-
-2. **Repair database**:
-   ```bash
-   python3 << 'EOF'
-   import json
-   import sys
-   
-   try:
-       with open("db/canonical.json") as f:
-           data = json.load(f)
-       print("✓ Database is valid")
-   except json.JSONDecodeError as e:
-       print(f"✗ JSON Error: {e}")
-       print("Attempting recovery...")
-       
-       # Try to fix
-       with open("db/canonical.json", "r") as f:
-           content = f.read()
-       
-       # Remove trailing invalid characters
-       content = content.rstrip('\n').rstrip('}')
-       if not content.endswith('}'):
-           content += '}'
-       
-       with open("db/canonical.json", "w") as f:
-           f.write(content)
-       
-       try:
-           with open("db/canonical.json") as f:
-               json.load(f)
-           print("✓ Database repaired")
-       except:
-           print("✗ Cannot repair. Restore from backup or reinitialize.")
-   EOF
-   ```
-
-3. **Reinitialize** (last resort, will lose data):
-   ```bash
-   python3 << 'EOF'
-   import json
-   db = {
-       "videos": [],
-       "metadata": {
-           "total_videos": 0,
-           "total_channels": 0,
-           "last_sync": None,
-           "version": "1.0"
-       }
-   }
-   with open("db/canonical.json", "w") as f:
-       json.dump(db, f, indent=2)
-   EOF
-   ```
-
-### Issue: "Missing transcript"
-
-**Symptoms**:
-```
-⚠️ Video X has no transcript
-```
-
-**Causes**:
-- Video has no captions
-- Captions are in another language
-- YouTube disabled captions for video
-- Transcript not available for this video
-
-**Solutions**:
-
-1. **Check if captions exist**:
-   ```bash
-   # Check YouTube directly
-   # Visit video on YouTube, check "Subtitles" button
-   ```
-
-2. **Try automatic captions**:
-   ```bash
-   # Edit download script to enable auto-captions
-   # Note: Requires yt-dlp, not YouTube API
-   ```
-
-3. **Skip videos without transcripts**:
-   ```bash
-   # Edit config.json
-   {
-     "skip_no_transcript": true
-   }
-   ```
-
-4. **Use fallback to speech-to-text**:
-   ```bash
-   # Not implemented yet, would require external API
-   # Consider filing feature request
-   ```
-
-### Issue: "Markdown generation incomplete"
-
-**Symptoms**:
-```
-⚠️ CRITICAL: 2 channels in DB but missing markdown folders! (21/23)
-```
-
-**Causes**:
-- Partial generation interrupted
-- Disk space filled mid-process
-- Permission issues during write
-
-**Solutions**:
-
-1. **Check what's missing**:
-   ```bash
-   python3 system_health_check.py
-   
-   # Check which channels are missing
-   python3 << 'EOF'
-   import json
-   import os
-   
-   with open("db/canonical.json") as f:
-       db = json.load(f)
-   
-   channels = set()
-   for video in db["videos"]:
-       channels.add(video.get("channel", "Unknown"))
-   
-   missing = []
-   for ch in channels:
-       md_dir = f"markdown/{ch}"
-       if not os.path.exists(md_dir):
-           missing.append(ch)
-   
-   print("Missing markdown for channels:")
-   for ch in missing:
-       print(f"  - {ch}")
-   EOF
-   ```
-
-2. **Regenerate markdown**:
-   ```bash
-   # Full regeneration
-   ./export.sh --markdown --force
-   
-   # Or for specific channel
-   python3 << 'EOF'
-   from src.markdown_generator import MarkdownGenerator
-   import json
-   
-   gen = MarkdownGenerator()
-   
-   # Filter and regenerate
-   with open("db/canonical.json") as f:
-       db = json.load(f)
-   
-   videos = [v for v in db["videos"] if v["channel"] == "ChannelName"]
-   for video in videos:
-       gen.generate(video)
-   EOF
-   ```
-
-3. **Check permissions**:
-   ```bash
-   ls -ld markdown/
-   # Should show: drwxr-xr-x
-   
-   chmod -R u+w markdown/
-   ```
-
-### Issue: "Performance is slow"
-
-**Symptoms**:
-- Downloads taking very long
-- Health check takes > 30 seconds
-- Markdown generation is slow
-
-**Solutions**:
-
-1. **Increase parallelism**:
-   ```bash
-   ./download_parallel.sh CHANNEL_URL --workers 8
-   ```
-
-2. **Check system resources**:
-   ```bash
-   # CPU usage
-   top -b -n 1 | head -20
-   
-   # Memory usage
-   free -h
-   
-   # Disk I/O
-   iostat -x 1 5
-   ```
-
-3. **Reduce batch size** (if out of memory):
-   ```bash
-   # Edit config.json
-   {
-     "batch_size": 50  # Default: 100
-   }
-   ```
-
-4. **Use SSD** (if on slow disk):
-   - Move `db/` and `out/` to faster storage
-   - Or use symlinks: `ln -s /mnt/ssd/db ./db`
-
-5. **Optimize database** (for large datasets):
-   ```bash
-   python3 << 'EOF'
-   import json
-   
-   # Defragment database
-   with open("db/canonical.json") as f:
-       db = json.load(f)
-   
-   # Write back compactly
-   with open("db/canonical.json", "w") as f:
-       json.dump(db, f, separators=(',', ':'))
-   EOF
-   ```
-
-### Issue: "Export format is wrong"
-
-**Symptoms**:
-- Markdown has wrong structure
-- Obsidian vault not working
-- Notion database import fails
-
-**Solutions**:
-
-1. **Check format version**:
-   ```bash
-   ./export.sh --markdown --version
-   ```
-
-2. **Regenerate with latest version**:
-   ```bash
-   git pull origin main
-   ./export.sh --markdown --force
-   ```
-
-3. **Check documentation**:
-   - Markdown format: See [README.md](README.md)
-   - Obsidian setup: See [API.md](API.md)
-   - Notion setup: See [API.md](API.md)
-
-## Debug Mode
-
-Enable verbose logging:
+## "My DB and `out/` disagree"
 
 ```bash
-# Set debug environment variable
-export DEBUG=1
-python3 system_health_check.py
-
-# Or edit scripts to add debug output
-# Add this to shell scripts:
-set -x  # Print each command
-
-# In Python scripts:
-import logging
-logging.basicConfig(level=logging.DEBUG)
+python3 -m ytx audit --write logs/audit.md
 ```
 
-## Getting More Help
+Common fixes:
+- Channel in `out/` but not DB: `python3 -m ytx metadata` (rebuilds canonical.json)
+- Channel in DB but no markdown: `python3 -m ytx markdown`
+- Trailing-space folder name: rename it manually
 
-If you can't find a solution here:
+## "I want to start over for one channel"
 
-1. **Check the logs**:
-   ```bash
-   tail -100 logs/transcript_exporter.log
-   grep ERROR logs/transcript_exporter.log
-   ```
+Safest move:
 
-2. **Run diagnostic**:
-   ```bash
-   python3 system_health_check.py > diagnostic.txt 2>&1
-   ```
+```bash
+mkdir -p .trash
+mv "out/Channel Name" ".trash/"
+mv "markdown/Channel Name" ".trash/"
 
-3. **Search GitHub Issues**:
-   - Go to [Issues](https://github.com/your-repo/issues)
-   - Use keywords from your error
+# Remove that channel's lines from db/downloaded.txt if you want a true re-download
+grep -v "^youtube " db/downloaded.txt > /tmp/da && mv /tmp/da db/downloaded.txt
 
-4. **Create a new issue** with:
-   - Error message (full output)
-   - Output of `python3 system_health_check.py`
-   - Last 100 lines of log file
-   - Python version: `python3 --version`
-   - OS info: `uname -a`
-   - Steps to reproduce
-
-## Performance Benchmarks
-
-Expected performance on modern hardware:
-
-```
-Operation              | Time/1000 videos | Time/1000 channels
---------------------- | --------------- | ------------------
-Download transcripts  | ~15-30 minutes   | ~1-3 hours
-Generate markdown     | ~5-10 minutes    | ~30-60 minutes
-Health check          | ~1-5 seconds     | ~2-10 seconds
-Database queries      | <100ms           | <500ms
+python3 -m ytx add https://www.youtube.com/@channelname
 ```
 
-Actual times depend on:
-- Network speed
-- YouTube API rate limits
-- Disk speed (SSD vs HDD)
-- Parallel workers (default: 4)
+## "Whisper output looks empty"
 
-## Reporting Bugs
+- Confirm the audio downloaded: look in the video's folder for a `_whisper_audio.opus` (if cleanup ran, it's gone; that's normal).
+- Check the logs: `tail -50 logs/ytx.jsonl | grep transcribe`
+- Try a bigger model: `--model medium`
 
-Found a bug? Help us fix it!
+## Logs
 
-**Bug report template**:
-
-```
-Title: Brief description of bug
-
-Description:
-[Detailed description]
-
-Steps to reproduce:
-1. ...
-2. ...
-3. ...
-
-Expected behavior:
-[What should happen]
-
-Actual behavior:
-[What actually happens]
-
-Environment:
-- Python version: [output of python3 --version]
-- OS: [Linux/macOS/Windows]
-- Platform: [x86_64/ARM64/etc]
-
-Logs:
-[Output of health check]
-[Relevant error messages]
+```bash
+tail -100 logs/ytx.jsonl              # structured JSON events
+ls archive/logs/yt_download_*.log     # legacy download logs
+python3 -m ytx audit                  # human-readable summary
 ```
 
-Thanks for helping make this project better!
+## Reporting bugs
+
+Include:
+
+1. `python3 -m ytx doctor` output
+2. `python3 -m ytx audit` output
+3. `yt-dlp --version`
+4. The exact URL that failed
+5. Last ~50 lines of `logs/ytx.jsonl`
+
+Open an issue at https://github.com/dlovecreator-arch/youtube-transcript-exporter/issues

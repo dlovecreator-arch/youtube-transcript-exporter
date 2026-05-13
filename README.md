@@ -7,322 +7,207 @@
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="license"/></a>
 <a href="#"><img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="python"/></a>
 <a href="#"><img src="https://img.shields.io/badge/yt--dlp-required-red?style=flat-square" alt="yt-dlp"/></a>
+<a href="#"><img src="https://img.shields.io/badge/Whisper-optional-7C3AED?style=flat-square&logo=openai&logoColor=white" alt="Whisper"/></a>
 <a href="#"><img src="https://img.shields.io/badge/Obsidian-ready-7C3AED?style=flat-square&logo=obsidian&logoColor=white" alt="Obsidian"/></a>
-<a href="#"><img src="https://img.shields.io/badge/Notion-sync-000000?style=flat-square&logo=notion&logoColor=white" alt="Notion"/></a>
-<a href="https://github.com/dlovecreator-arch/youtube-transcript-exporter/stargazers"><img src="https://img.shields.io/github/stars/dlovecreator-arch/youtube-transcript-exporter?style=flat-square" alt="stars"/></a>
 </p>
 
-<p><strong>Bulk-export YouTube transcripts + metadata into a clean local dataset you can search, analyze, and feed into any workflow (Obsidian, Notion, RAG, research).</strong></p>
+<h3>Drop in a YouTube channel. Walk away. Get a clean, RAG-ready local dataset.</h3>
 
-<p>
-<a href="QUICKSTART.md">⚡ Quick Start</a> -
-<a href="INSTALL.md">📦 Install</a> -
-<a href="API.md">📚 API Docs</a> -
-<a href="TROUBLESHOOTING.md">🔧 Help</a> -
-<a href="PRODUCTION_READINESS.md">✅ Production Ready</a>
-</p>
+<p><em>Production-tested on 60+ channels, 24,000+ videos, ~1.4 GB of indexed transcripts.</em></p>
 
 </div>
 
 ---
 
-## 📖 Documentation
-
-This project is built for production use. Start here:
-
-| Document | Purpose |
-|----------|---------|
-| [**QUICKSTART.md**](QUICKSTART.md) | Get up and running in 5 minutes |
-| [**INSTALL.md**](INSTALL.md) | Detailed installation guide |
-| [**API.md**](API.md) | Programmatic usage & examples |
-| [**TROUBLESHOOTING.md**](TROUBLESHOOTING.md) | Solve common problems |
-| [**PRODUCTION_READINESS.md**](PRODUCTION_READINESS.md) | Enterprise-grade standards met |
-| [**CONTRIBUTING.md**](CONTRIBUTING.md) | Help improve this project |
-
-Internal/maintenance notes are kept in [`docs/reports/`](docs/reports/) to keep the repo top-level clean.
-
----
-
 ## Why this exists
 
-You watch a lot of YouTube. Across 10+ channels, the same ideas, guests, and frameworks come up over and over. But you can't search across them. You can't ask _"every time Joe Rogan, Lex, and Huberman talked about sleep"_. You can't even quote them properly.
+You watch a lot of YouTube. Across dozens of channels, the same ideas, guests, and frameworks come up over and over. But you can't search across them. You can't ask *"every time Lex, Huberman, and Joe Hudson talked about attention"*. You can't quote them properly. And every other tool either trickles one video at a time, breaks at channel scale, or locks you into a SaaS.
 
-This tool turns YouTube channels into a **searchable, structured dataset** you can:
+This tool turns YouTube channels into a **searchable, structured, RAG-friendly dataset** you can:
 
-- read like a library (Markdown)
-- analyze like a database (canonical JSON)
-- index for semantic search / RAG
-- optionally sync into tools like Obsidian or Notion
+- read like a library (Markdown vault, Obsidian-ready)
+- analyze like a database (one canonical JSON)
+- index for semantic search / RAG (JSONL export)
+- never re-download (idempotent download archive)
 
-Notion and Obsidian integrations are **optional exporters**, not requirements.
-
-## Who this is for
-
-- Researchers and students building a literature review from long-form content
-- Journalists and analysts creating a quoteable archive
-- Creators and teams monitoring topics/guests across channels
-- Engineers building RAG datasets from public video transcripts
-- Anyone building a personal "second brain" from YouTube
-
-## Common use cases
-
-1. **Build a searchable interview archive**
-   - Export multiple channels
-   - Search across guests/topics with grep, ripgrep, or an LLM
-
-2. **Create a local RAG dataset**
-   - Use `db/canonical.json` as your single source of truth
-   - Chunk/embed the transcript text for semantic search
-
-3. **Team knowledge base / enablement**
-   - Turn long-form content into a browsable Markdown library
-   - Commit *only the code* to GitHub and keep data local
-
-4. **Optional exports**
-   - **Obsidian**: open `markdown/` as a vault
-   - **Notion**: export to a Notion database if you want a hosted UI
-
-## Why this is different
-
-- **Resumable + safe to rerun**: downloads and processing can be repeated without corrupting state
-- **Canonical database**: deduplicates videos across channels into one JSON source of truth
-- **Incremental markdown generation**: does not wipe your vault; writes only changed files
-- **Health checks**: `system_health_check.py` catches drift early
-
-Run one command per channel:
+## One command UX
 
 ```bash
-./export.sh --full-pipeline https://www.youtube.com/@SomeChannel
+# Add a channel and walk away
+python -m ytx add https://www.youtube.com/@LexFridman
+
+# Add a list of channels
+python -m ytx add channels.txt
+
+# Refresh everything you've ever added
+python -m ytx update
+
+# Health check (alignment, captions, orphans, bloat)
+python -m ytx audit
+
+# Fill caption gaps with Whisper (opt-in)
+python -m ytx transcribe --model small
+
+# Export for RAG / embeddings
+python -m ytx export jsonl --out exports/transcripts.jsonl
+
+# Diagnose your environment
+python -m ytx doctor
 ```
 
-Prefer a single entrypoint?
+That's it. No SaaS, no API keys, no vendor lock-in.
+
+## What makes it reliable at scale
+
+YouTube actively fights bulk extraction. Naive scripts break in 10+ ways. This tool was hardened against all of them across 60+ real channels:
+
+| Problem | Fix |
+|---|---|
+| `/videos` tab only returns 8 recent items | Auto-detect under-20 result count; retry with channel root URL |
+| Asha Nayaswami (1,900+ videos) times out at 600s | Adaptive timeout: 600s / 3600s / 7200s / 14400s based on observed channel size |
+| Rate limiting after ~2 hours | Cookies-from-browser opt-in (`--cookies-from-browser chrome`) plus rotating UAs, polite sleep intervals, retry-with-backoff |
+| PO token / age-gated / region-locked videos | `--extractor-args youtube:player_client=android,web,ios` cascades clients |
+| Half-downloaded `.part` orphans | `--ignore-errors --no-abort-on-error`, partial files quarantined to `.trash/` on cleanup |
+| Re-runs re-downloading what's already there | Global `--download-archive db/downloaded.txt` makes re-runs O(1) skips |
+| Channel-listing folders (`@handle`, `UCxxx`) leaking into `out/` | Auto-quarantined into `_channel_meta/` |
+| Caption-less videos (Shorts, music, foreign-lang) | Optional Whisper fallback (`ytx transcribe`) generates `.en.vtt` |
+| Mid-flight kills corrupting state | All writes idempotent; canonical.json rebuildable; `.bak` snapshot before destructive ops |
+| Whitespace / Unicode drift in folder names | `ytx audit` detects + reports them |
+
+Every one of these came from a real incident. Every fix is documented in `CONVENTIONS.md`.
+
+## Project layout
+
+```
+youtube_transcript_exporter/
+├── README.md, QUICKSTART.md, INSTALL.md, TROUBLESHOOTING.md
+├── CONVENTIONS.md           # The rules. Read before contributing.
+├── ytx/                     # Modern Python package (the masterpiece)
+│   ├── __main__.py          # CLI: `python -m ytx ...`
+│   ├── config.py            # Paths + defaults
+│   ├── downloader.py        # yt-dlp wrapper, idempotent
+│   ├── transcriber.py       # Whisper fallback (opt-in)
+│   ├── metadata...          # canonical.json builder (in src/)
+│   ├── audit.py             # alignment / health
+│   ├── doctor.py            # env diagnostics
+│   └── exporters/           # JSONL / RAG export
+├── src/                     # Legacy stable scripts (still supported)
+├── tools/                   # One-off maintenance utilities
+├── out/                     # Raw downloads: <channel>/<video_id>/*.info.json, *.vtt
+├── db/canonical.json        # Single source of truth
+├── db/downloaded.txt        # yt-dlp idempotency archive
+├── markdown/                # Obsidian-ready vault
+├── archive/                 # Historical reports, never read by code
+├── tests/smoke_test.sh      # 7-step sanity check
+└── export.sh                # Stable shell entrypoint (legacy)
+```
+
+## Output: one canonical record per video
+
+Every video lands in `db/canonical.json`:
+
+```json
+{
+  "id": "BcWXVnZwJjA",
+  "title": "...",
+  "channel": "Chris Williamson",
+  "guest": "Andrew Huberman",
+  "date": "20251022",
+  "duration": 7200,
+  "views": 250000,
+  "url": "https://youtu.be/BcWXVnZwJjA",
+  "tags": ["focus", "attention", "neuroscience"],
+  "category": "Education",
+  "description": "...",
+  "sources": ["BcWXVnZwJjA"]
+}
+```
+
+...and a matching markdown file at `markdown/<Channel>/<slug>_<id>.md` with full transcript and YAML frontmatter.
+
+## RAG export
 
 ```bash
-python -m ytexporter new-channel https://www.youtube.com/@SomeChannel
-python -m ytexporter rebuild-markdown
-python -m ytexporter health
+python -m ytx export jsonl --out exports/transcripts.jsonl
 ```
 
-You get clean transcripts, structured metadata (guest, tags, date, views), and a single canonical database that links the same video appearing on multiple channels.
+Produces one JSON record per line with:
+- canonical metadata
+- cleaned transcript text (VTT parsed + adjacent-line deduped)
+- stable `source_id` for citation back to YouTube
 
----
+Drop the JSONL into any embedding pipeline (LlamaIndex, LangChain, Vectara, custom).
 
-## ⚡ Quickstart
-
-### Prerequisites
-
-- **macOS / Linux** (Windows works via WSL)
-- **Python 3.10+**
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** (`brew install yt-dlp` or `pip install yt-dlp`)
-
-### 60-second setup
+## Quickstart
 
 ```bash
 # 1. Clone
 git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
 cd youtube-transcript-exporter
 
-# 2. (Optional) Bring your channel list
-cp channels.txt.example channels.txt
-# add your channels, one URL per line
+# 2. Install (Python deps minimal; yt-dlp required; Whisper optional)
+pip install -r requirements.txt
+brew install yt-dlp ffmpeg     # macOS; or: pipx install yt-dlp
 
-# 3. Process your first channel
-./export.sh --full-pipeline https://www.youtube.com/@LexFridman
+# 3. Sanity check
+python -m ytx doctor
 
-# 4. Open the vault in Obsidian
-open markdown/
+# 4. Add your first channel
+python -m ytx add https://www.youtube.com/@LexFridman
+
+# 5. See what you've got
+python -m ytx audit
 ```
 
-That's it. You now have hundreds of `.md` files with YAML frontmatter, ready for Obsidian's Dataview, Notion's database import, or any LLM pipeline.
+See [`QUICKSTART.md`](QUICKSTART.md) and [`INSTALL.md`](INSTALL.md) for details.
 
----
+## Whisper fallback (optional, opt-in)
 
-## 🎁 What you get
-
-After one `--full-pipeline` run on a channel:
-
-| Path                              | What it is                                         |
-|-----------------------------------|----------------------------------------------------|
-| `out/<Channel>/<video_id>/`       | Raw downloads (`.info.json`, `.en.vtt`, transcript)|
-| `db/canonical.json`               | Single source of truth -- every video, every channel |
-| `markdown/<Channel>/...md`        | Obsidian-ready markdown with YAML frontmatter      |
-| `markdown/_start_here.md`         | Auto-generated global index                        |
-| `markdown/<Channel>/_index.md`    | Auto-generated per-channel index                   |
-
-### Sample output file
-
-```yaml
----
-id: dQw4w9WgXcQ
-title: "How AI Will Change Everything"
-channel: "Lex Fridman"
-guest: "Sam Altman"
-guest_confidence: 0.95
-date: 2025-01-15
-duration_seconds: 9842
-views: 4500000
-likes: 78000
-tags: [ai, agi, openai, future]
-url: https://youtu.be/dQw4w9WgXcQ
-word_count: 41203
-reading_time_minutes: 206
----
-
-# How AI Will Change Everything
-
-(full cleaned transcript text here)
-```
-
-See [`docs/example_output.md`](docs/example_output.md) for a complete sample.
-
----
-
-## 🏗 How it works
-
-```mermaid
-flowchart LR
-    A[YouTube Channel URL] -->|yt-dlp| B[out/&lt;channel&gt;/&lt;video_id&gt;/]
-    B --> C[metadata_extractor.py]
-    C --> D[(db/canonical.json)]
-    D --> E[markdown_generator.py]
-    E --> F[markdown/&lt;Channel&gt;/*.md]
-    D --> G[notion_exporter.py]
-    G --> H[Notion Database]
-    F --> I[Obsidian Vault]
-    F --> J[LLM / RAG Pipeline]
-
-    style D fill:#7c3aed,stroke:#fff,color:#fff
-    style F fill:#ec4899,stroke:#fff,color:#fff
-    style I fill:#7C3AED,stroke:#fff,color:#fff
-    style H fill:#000,stroke:#fff,color:#fff
-```
-
-### The four phases
-
-1. **Download** -- `yt-dlp` pulls captions and metadata into `out/<channel>/<video_id>/`. Folders are always named by the 11-character YouTube id (titles change; ids never do).
-2. **Extract** -- a Python pass reads every `.info.json` and produces `db/canonical.json`: a single, deduplicated list of every video across every channel, with guests/tags inferred via heuristics.
-3. **Generate** -- `markdown_generator.py` reads the canonical DB and writes one clean `.md` file per video, with full YAML frontmatter and a deduplicated transcript body.
-4. **Audit** -- `--audit` re-validates the layout and reports anything that drifted from the rules in [`CONVENTIONS.md`](CONVENTIONS.md).
-
-Every step is **idempotent**: re-running on existing data is a no-op.
-
----
-
-## 📚 Commands
+Some videos have no captions. To fill them:
 
 ```bash
-./export.sh --help
+pip install faster-whisper
+python -m ytx transcribe --model small --limit 50
 ```
 
-| Command                                   | What it does                                       |
-|-------------------------------------------|----------------------------------------------------|
-| `./export.sh --full-pipeline <URL>`       | Download + metadata + markdown + audit (the usual) |
-| `./export.sh --new-channel <URL>`         | Only download                                      |
-| `./export.sh --rebuild-metadata`          | Rebuild `db/canonical.json` from `out/`            |
-| `./export.sh --rebuild-markdown`          | Rebuild `markdown/` from `db/canonical.json`       |
-| `./export.sh --audit`                     | Print quality + layout audit                       |
-| `./export.sh --export-notion [--max N]`   | Push to Notion (needs `NOTION_TOKEN`)              |
+It will scan `out/` for caption-less videos, download audio-only, transcribe locally (no API), and emit `.en.vtt` in the same format yt-dlp uses. The rest of the pipeline is unchanged.
 
-### Export to Notion
+Recommended models:
+- `tiny` -- fastest, ok accuracy, good for triage
+- `small` -- the sweet spot for podcasts (default)
+- `medium` / `large-v3` -- best accuracy if you have GPU
+
+## Cookies (the single biggest reliability win)
 
 ```bash
-export NOTION_TOKEN="secret_xxx"             # from https://www.notion.so/my-integrations
-export NOTION_DATABASE_ID="xxx"              # your destination database
-./export.sh --export-notion
+python -m ytx add https://www.youtube.com/@channel --cookies-from-browser chrome
 ```
 
-### Use with Obsidian
+This dramatically reduces rate limiting because yt-dlp authenticates as you. Stays local. Other supported browsers: `safari`, `firefox`, `brave`, `edge`, `vivaldi`.
 
-```bash
-# Either symlink or copy the vault
-ln -s "$(pwd)/markdown" ~/ObsidianVaults/YouTube
-# Then open in Obsidian and install the Dataview plugin to query frontmatter.
-```
+## Common use cases
 
-Try this Dataview query inside Obsidian:
+1. **Personal second brain** -- export to Obsidian, search across all channels you follow
+2. **RAG corpus** -- chunk + embed the JSONL, query with any LLM
+3. **Research / journalism** -- search across guests, topics, dates
+4. **Team enablement** -- turn long-form content into a browseable library
 
-````
-```dataview
-TABLE channel, guest, date, views
-FROM "."
-WHERE contains(tags, "consciousness")
-SORT views DESC
-LIMIT 20
-```
-````
+## Documentation
 
----
+| File | Purpose |
+|------|---------|
+| [`QUICKSTART.md`](QUICKSTART.md) | 5-minute setup |
+| [`INSTALL.md`](INSTALL.md) | Detailed install per OS |
+| [`CONVENTIONS.md`](CONVENTIONS.md) | The single source of truth for layout + naming + lessons learned |
+| [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) | Solve common problems |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to help |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed |
+| [`archive/historical_docs/`](archive/historical_docs/) | Older design docs, audit reports, deployment notes |
 
-## 🧠 Cross-channel research
+## License
 
-The canonical DB tracks the same video appearing on multiple channels (re-uploads, clips, podcast networks). Guests are normalized so a person appearing across 5 channels is a single searchable entity.
+MIT. Use it, fork it, build on it.
 
-```bash
-# How many unique guests do you have across all channels?
-python3 -c "
-import json; d = json.load(open('db/canonical.json'))
-guests = {v['guest'] for v in d['videos'] if v.get('guest')}
-print(f'Unique guests: {len(guests)}')"
-```
+## Built by
 
----
-
-## 🗂 Repo layout
-
-```
-youtube-transcript-exporter/
-├── CONVENTIONS.md          # The rules. Read first.
-├── README.md               # This file.
-├── export.sh               # Single CLI entry point.
-├── channels.txt.example    # Template channel list.
-├── src/                    # Python scripts.
-│   ├── metadata_extractor.py
-│   ├── markdown_generator.py
-│   ├── obsidian_formatter.py
-│   └── notion_exporter.py
-├── db/                     # Generated canonical DB (gitignored).
-├── out/                    # Raw yt-dlp downloads (gitignored).
-├── markdown/               # Generated Obsidian vault (gitignored).
-└── docs/                   # Examples + diagrams.
-```
-
-The data folders (`out/`, `markdown/`, `db/canonical.json`) are intentionally not committed -- everyone generates their own.
-
----
-
-## 🛣 Roadmap
-
-- [ ] Auto-summary per video (LLM, optional)
-- [ ] Timeline view across channels (`when did they all start talking about X?`)
-- [ ] Auto-link guests across channels in markdown via Obsidian wiki-links
-- [ ] CI: layout audit on every PR
-- [ ] Optional: Whisper fallback for videos without auto-captions
-
-PRs welcome -- see [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## ⚠️ Legal & ethical use
-
-- Respect YouTube's terms of service and creators' rights.
-- Use this for personal research, study, and accessibility.
-- Don't republish full transcripts at scale without permission.
-- yt-dlp may rate-limit; the default config sleeps 1.5--3 seconds between videos.
-
----
-
-## 🙏 Credits
-
-- Built on top of the excellent [yt-dlp](https://github.com/yt-dlp/yt-dlp).
-- Architecture inspired by the "single source of truth + idempotent pipeline" philosophy.
-- Designed for [Obsidian](https://obsidian.md/) and [Notion](https://notion.so/) users.
-
----
-
-## 📄 License
-
-[MIT](LICENSE) -- do what you want, just don't blame me.
-
-<div align="center">
-<sub>Built with care for fellow infovores. ★ if it helps you.</sub>
-</div>
+[Daniel Love](https://github.com/dlovecreator-arch) -- with painful lessons distilled from 60+ channels and 24,000+ videos extracted.

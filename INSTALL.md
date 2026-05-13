@@ -1,202 +1,103 @@
-# Installation Guide
+# Installation
+
+This tool is intentionally lightweight: no SaaS, no API keys, minimal Python deps.
 
 ## Requirements
 
-- **Python**: 3.9 or higher
-- **OS**: Linux, macOS, or Windows (with WSL2 recommended)
-- **Disk Space**: 10GB+ for initial dataset
-- **Internet**: Required for YouTube API access
+| Tool | Required? | Why |
+|---|---|---|
+| Python 3.10+ | required | runs the CLI and pipeline |
+| `yt-dlp` | required | the bulk extractor (latest, kept rolling) |
+| `ffmpeg` | optional | only for the Whisper fallback (audio decode) |
+| `faster-whisper` | optional | local fallback transcription for caption-less videos |
+| `pyyaml` | optional | nicer YAML frontmatter in markdown output |
 
-## Quick Start (5 minutes)
+You do **not** need a YouTube API key.
 
-### 1. Clone the repository
+## Install per platform
+
+### macOS
 
 ```bash
+brew install yt-dlp ffmpeg
 git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
 cd youtube-transcript-exporter
+pip3 install -r requirements.txt
+python3 -m ytx doctor
 ```
 
-### 2. Verify Python version
+### Linux (Debian/Ubuntu)
 
 ```bash
-python3 --version  # Should be 3.9 or higher
+sudo apt update
+sudo apt install python3-pip ffmpeg
+pipx install yt-dlp        # or: pip3 install --user -U yt-dlp
+git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
+cd youtube-transcript-exporter
+pip3 install -r requirements.txt
+python3 -m ytx doctor
 ```
 
-### 3. Set up the environment
+### Windows
+
+```powershell
+winget install yt-dlp.yt-dlp
+winget install Gyan.FFmpeg
+git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
+cd youtube-transcript-exporter
+pip install -r requirements.txt
+python -m ytx doctor
+```
+
+WSL2 is also fully supported; follow the Linux instructions inside WSL.
+
+## Optional: Whisper fallback
+
+For caption-less videos:
 
 ```bash
-# Create necessary directories
-mkdir -p db out markdown
-
-# Create a .env file (optional, for YouTube API key)
-touch .env
+pip install faster-whisper
+# verify
+python3 -m ytx doctor
 ```
 
-### 4. Verify installation
+`faster-whisper` builds against `av` which needs ffmpeg dev headers. If install fails:
+
+- macOS: `brew install ffmpeg` (full install, not just the binary)
+- Linux: `sudo apt install ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev`
+
+## Optional: keep yt-dlp rolling
+
+YouTube changes their site often. Keep yt-dlp current:
 
 ```bash
-python3 system_health_check.py
+# Homebrew
+brew upgrade yt-dlp
+
+# pipx / pip
+yt-dlp -U
 ```
 
-You should see:
-```
-================================================================================
-SYSTEM HEALTH CHECK - COMPREHENSIVE
-================================================================================
-[1] CANONICAL DATABASE
-  ✓ Database initialized (0 videos initially)
-```
+The downloader uses `--extractor-args youtube:player_client=android,web,ios` to survive site changes, but the simplest fix when something breaks is `yt-dlp -U`.
 
-## Configuration
-
-### YouTube API Setup (Recommended)
-
-To access transcripts and metadata, you need a YouTube API key:
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project
-3. Enable YouTube Data API v3
-4. Create an API key (Credentials > API Key)
-5. Add to your `.env` file:
-
-```env
-YOUTUBE_API_KEY=your_key_here
-```
-
-### Configuration Options
-
-Create a `config.json` file in the project root:
-
-```json
-{
-  "youtube_api_key": "YOUR_KEY_HERE",
-  "max_workers": 4,
-  "download_timeout": 300,
-  "retry_attempts": 3,
-  "retry_delay": 5,
-  "output_dir": "out",
-  "markdown_dir": "markdown",
-  "db_path": "db/canonical.json"
-}
-```
-
-Default values will be used if not specified.
-
-## Usage
-
-### Basic Operations
-
-#### Download transcripts from a channel
+## First run
 
 ```bash
-./download_parallel.sh "https://www.youtube.com/c/YourChannelName"
+# Verify environment
+python3 -m ytx doctor
+
+# Add a channel and walk away
+python3 -m ytx add https://www.youtube.com/@LexFridman
+
+# Check health
+python3 -m ytx audit
 ```
 
-#### Export to different formats
+If the audit reports drift, see [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md).
 
-```bash
-# Export to markdown (recommended)
-./export.sh --markdown
+## Keeping it healthy
 
-# Export to Notion
-./export.sh --notion
-
-# Export to Obsidian
-./export.sh --obsidian
-
-# Full audit
-./export.sh --audit
-```
-
-#### Check system health
-
-```bash
-python3 system_health_check.py
-```
-
-### Batch Operations
-
-#### Download multiple channels
-
-```bash
-./batch_redownload_parallel.sh
-```
-
-#### Enhancement pipeline
-
-```bash
-./enhance_parallel_batch.sh
-```
-
-## Docker Setup (Optional)
-
-For isolated environments:
-
-```bash
-docker build -t yt-transcript-exporter .
-docker run -it -v $(pwd):/data yt-transcript-exporter
-```
-
-## Troubleshooting
-
-### Common Issues
-
-**Issue**: "Python 3 not found"
-```bash
-# Use python3 explicitly
-python3 system_health_check.py
-
-# Or verify installation
-which python3
-python3 --version
-```
-
-**Issue**: "YouTube API quota exceeded"
-- Wait 24 hours for quota reset
-- Or implement exponential backoff (see TROUBLESHOOTING.md)
-
-**Issue**: "Disk space full"
-- Check available space: `df -h`
-- Clean old downloads: `rm -rf out/old_channel_*`
-
-**Issue**: "Network timeout"
-- Increase timeout in config.json: `"download_timeout": 600`
-- Or re-run download (idempotent by design)
-
-### Check Logs
-
-```bash
-# View recent logs
-tail -f logs/transcript_exporter.log
-
-# Search for errors
-grep ERROR logs/transcript_exporter.log
-```
-
-## Updating
-
-```bash
-# Pull latest changes
-git pull origin main
-
-# Run health check to verify
-python3 system_health_check.py
-```
-
-## Getting Help
-
-- **Documentation**: See [README.md](README.md)
-- **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- **API Reference**: See [API.md](API.md)
-- **Issues**: Open a GitHub issue with:
-  - Python version
-  - OS/Platform
-  - Output of `system_health_check.py`
-  - Last 50 lines of error log
-
-## Next Steps
-
-1. Read the [README.md](README.md) for project overview
-2. Try a test download with a small channel
-3. Review [API.md](API.md) for programmatic usage
-4. Check [CONTRIBUTING.md](CONTRIBUTING.md) if you want to contribute
+- `python3 -m ytx update` -- re-runs the download for every URL in `channels.txt` (idempotent)
+- `python3 -m ytx audit` -- reports anything that drifted
+- `tests/smoke_test.sh` -- sanity check after upgrades
+- Cron-friendly: every command exits non-zero on real problems

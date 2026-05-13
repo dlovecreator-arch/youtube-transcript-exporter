@@ -95,12 +95,21 @@ def build_canonical_db():
             continue
         
         # Build canonical record
+        # Use the folder name as the canonical channel (humans curate these for clean naming).
+        # Fall back to YT's `channel` field if the folder is unusual.
+        # The folder layout is out/<channel>/<video_id>/<file>.info.json,
+        # so info_path.parent.parent.name is the channel folder name.
+        folder_channel = info_path.parent.parent.name if info_path.parent.parent != OUT_BASE else None
+        yt_channel = (data.get("channel") or "").strip()
+        yt_uploader = (data.get("uploader") or "").strip()
+        canonical_channel = (folder_channel or yt_channel or yt_uploader or "Unknown").strip()
+
         record = {
             "id": video_id,
             "title": data.get("title", "Untitled"),
-            "channel": data.get("channel", "Unknown"),
+            "channel": canonical_channel,
             "channel_id": data.get("channel_id", ""),
-            "uploader": data.get("uploader", "Unknown"),
+            "uploader": yt_uploader or "Unknown",
             "date": data.get("upload_date", ""),
             "duration": data.get("duration", 0),
             "views": data.get("view_count", 0),

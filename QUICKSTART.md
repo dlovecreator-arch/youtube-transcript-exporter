@@ -1,90 +1,82 @@
-# Quick Start Guide
+# Quick Start
 
-Get YouTube transcripts up and running in 5 minutes.
+Get a YouTube channel into a clean local dataset in 5 minutes. No API keys. No SaaS.
 
-## Step 1: Clone & Setup (2 minutes)
+## 1. Install (2 min)
 
 ```bash
-# Clone repository
 git clone https://github.com/dlovecreator-arch/youtube-transcript-exporter.git
 cd youtube-transcript-exporter
 
-# Create required directories
-mkdir -p db out markdown logs
+# Python deps (minimal -- pyyaml only required for one optional tool)
+pip install -r requirements.txt
 
-# Verify Python 3.9+
-python3 --version
+# yt-dlp is required
+# macOS:    brew install yt-dlp ffmpeg
+# Linux:    pipx install yt-dlp && sudo apt install ffmpeg
+# Windows:  winget install yt-dlp.yt-dlp
 ```
 
-## Step 2: Get YouTube API Key (2 minutes)
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project
-3. Enable **YouTube Data API v3**
-4. Create an API Key under Credentials
-5. Save your key
-
-## Step 3: Configure (1 minute)
+## 2. Sanity check
 
 ```bash
-# Copy .env template
-cp .env.example .env
-
-# Edit .env with your API key
-# (or set environment variable: export YOUTUBE_API_KEY=your_key)
+python -m ytx doctor
 ```
 
-## Step 4: Test Installation
+You should see green checkmarks for `yt-dlp`, `python3`, and `disk free`. ffmpeg is optional (only needed for the Whisper fallback). faster_whisper is optional too.
+
+## 3. Add your first channel
 
 ```bash
-# Run health check
-python3 system_health_check.py
-
-# You should see:
-# ✓ Database initialized (0 videos initially)
-# ✓ All checks passed
+python -m ytx add https://www.youtube.com/@LexFridman
 ```
 
-## Step 5: Download Your First Channel
+This will:
+1. Resilient-download metadata + captions (no media) for every video
+2. Build `db/canonical.json` with deduplicated records
+3. Generate Obsidian-ready Markdown under `markdown/Lex Fridman/`
+4. Add the URL to `channels.txt` for future `ytx update`
+
+## 4. Check what you've got
 
 ```bash
-# Download from a YouTube channel
-./download_parallel.sh "https://www.youtube.com/c/CHANNEL_NAME"
-
-# Then export to markdown
-./export.sh --markdown
+python -m ytx audit
 ```
 
-Done! Check the `markdown/` folder for your transcripts.
+Reports counts, caption coverage, alignment, and any drift. Exit code is 0 when healthy.
 
-## Next Steps
+## 5. Use it
 
-- **Download more channels**: `./batch_redownload_parallel.sh`
-- **Export formats**: See [API.md](API.md) for all export options
-- **Troubleshooting**: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-- **Full docs**: See [README.md](README.md)
-
-## Need Help?
+Open `markdown/` as an Obsidian vault, or:
 
 ```bash
-# Check system status
-python3 system_health_check.py
+# Export everything as JSONL for RAG / embeddings
+python -m ytx export jsonl --out exports/transcripts.jsonl
 
-# View recent logs
-tail -50 logs/*.log
+# Refresh all channels
+python -m ytx update
 
-# See detailed documentation
-cat TROUBLESHOOTING.md | grep "Issue:"
+# Fill caption gaps with Whisper (optional)
+pip install faster-whisper
+python -m ytx transcribe --model small --limit 50
 ```
 
-## Docker Alternative
+## Common flags
 
 ```bash
-# Build and run in Docker
-docker-compose up
+# Use your browser cookies for higher reliability (big win against rate limits)
+python -m ytx add <url> --cookies-from-browser chrome
 
-# Or with API key
-YOUTUBE_API_KEY=your_key docker-compose up
+# Use a proxy (works great with a VPN)
+python -m ytx add <url> --proxy http://localhost:1080
+
+# Bulk-add from a file (one URL per line)
+python -m ytx add channels.txt
 ```
 
-That's it! You now have YouTube transcripts locally. See [API.md](API.md) for programmatic usage.
+## What's next
+
+- [`README.md`](README.md) for the philosophy + full reliability story
+- [`CONVENTIONS.md`](CONVENTIONS.md) for the layout rules and lessons learned
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) if anything fights you
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) to add features or new exporters

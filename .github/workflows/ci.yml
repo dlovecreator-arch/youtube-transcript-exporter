@@ -32,7 +32,12 @@ jobs:
       - name: Lint Python (ruff)
         run: |
           # Lenient ruleset for now -- catch real bugs, not style nits.
-          ruff check src/ --select=E9,F63,F7,F82 --output-format=github
+          ruff check src/ ytx/ --select=E9,F63,F7,F82 --output-format=github
+
+      - name: ytx smoke test (imports, audit, doctor, downloader argv)
+        run: |
+          pip install pyyaml
+          bash tests/smoke_test.sh
 
       - name: Build test fixture
         run: bash tests/build_fixture.sh
