@@ -59,3 +59,6 @@ secrets/
 NOTES.md
 SCRATCH.md
 TODO.md
+
+# Quarantine -- inspect before deleting
+.trash/
